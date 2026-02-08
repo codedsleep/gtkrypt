@@ -18,6 +18,13 @@
 # Rust build artifacts
 /crypto/target
 
+# local-only files
+/bin
+/DESIGN.md
+/CONTRIBUTING.md
+/PROMPT.md
+/SCOPE.md
+
 # misc
 .DS_Store
 
