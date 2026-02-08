@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4da3f7"/>
+      <stop offset="1" stop-color="#1a6dd4"/>
+    </linearGradient>
+    <linearGradient id="lock-body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dce5f0"/>
+    </linearGradient>
+    <linearGradient id="shackle-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f0f4f8"/>
+      <stop offset="1" stop-color="#c4d1e0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded rectangle background (GNOME app icon style) -->
+  <rect x="4" y="4" width="120" height="120" rx="28" ry="28" fill="url(#bg)"/>
+
+  <!-- Subtle inner shadow / highlight on the background -->
+  <rect x="4" y="4" width="120" height="120" rx="28" ry="28"
+        fill="none" stroke="#ffffff" stroke-opacity="0.2" stroke-width="1"/>
+
+  <!-- Lock shackle (the U-shaped top part) -->
+  <path d="M46 58 L46 44 C46 30.745 54.745 22 64 22 C73.255 22 82 30.745 82 44 L82 58"
+        fill="none" stroke="url(#shackle-grad)" stroke-width="8"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Lock body (rounded rectangle) -->
+  <rect x="38" y="56" width="52" height="42" rx="6" ry="6" fill="url(#lock-body)"/>
+
+  <!-- Lock body subtle border -->
+  <rect x="38" y="56" width="52" height="42" rx="6" ry="6"
+        fill="none" stroke="#a0b4cc" stroke-width="1" stroke-opacity="0.5"/>
+
+  <!-- Keyhole circle -->
+  <circle cx="64" cy="73" r="6" fill="#2b6cb8"/>
+
+  <!-- Keyhole slot (the little rectangle hanging down from the circle) -->
+  <rect x="61.5" y="76" width="5" height="10" rx="2" ry="2" fill="#2b6cb8"/>
+</svg>

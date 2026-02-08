@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=gtkrypt
+GenericName=File Encryption
+Comment=Encrypt and decrypt files with a passphrase
+Exec=io.github.gtkrypt %F
+Icon=io.github.gtkrypt
+Terminal=false
+StartupNotify=true
+Categories=Utility;Security;
+MimeType=application/x-gtkrypt;

@@ -1,0 +1,26 @@
+{
+  "name": "gtkrypt",
+  "version": "1.0.0",
+  "description": "* libgtk4 * libadwaita * gjs",
+  "main": "dist/index.js",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "node esbuild.js",
+    "start": "npm run build && gjs -m dist/main.js",
+    "test": "bash tests/run.sh"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bin": "bin/gtkrypt",
+  "devDependencies": {
+    "@girs/adw-1": "^1.7.0-4.0.0-beta.19",
+    "@girs/gjs": "^4.0.0-beta.19",
+    "@girs/gtk-4.0": "^4.16.3-4.0.0-beta.19",
+    "esbuild": "^0.24.2",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
+  }
+}
