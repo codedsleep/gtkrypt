@@ -20,6 +20,7 @@
 
 # local-only files
 /bin
+/docs
 /DESIGN.md
 /CONTRIBUTING.md
 /PROMPT.md
