@@ -12,7 +12,7 @@ import GObject from "gi://GObject";
 import Adw from "gi://Adw?version=1";
 
 import type { FileEntry } from "../models/types.js";
-import { _ } from "../util/i18n.js";
+import { _, ngettext } from "../util/i18n.js";
 
 /**
  * Format a byte count into a human-readable string using binary units.
@@ -46,6 +46,8 @@ function getActionLabel(files: FileEntry[]): string {
 
 class _FileListView extends Gtk.Box {
   private _files: FileEntry[] = [];
+  private _headerTitle!: Gtk.Label;
+  private _headerSubtitle!: Gtk.Label;
   private _listBox!: Gtk.ListBox;
   private _actionButton!: Gtk.Button;
   private _clearButton!: Gtk.Button;
@@ -68,6 +70,7 @@ class _FileListView extends Gtk.Box {
       ...config,
     });
 
+    this._buildHeader();
     this._buildListArea();
     this._buildActionBar();
     this._updateActionState();
@@ -102,20 +105,53 @@ class _FileListView extends Gtk.Box {
 
   // -- Private: widget construction -----------------------------------------
 
+  /** Create a simple title area above the list. */
+  private _buildHeader(): void {
+    this._headerTitle = new Gtk.Label({
+      label: _("Selected Files"),
+      halign: Gtk.Align.START,
+      css_classes: ["heading"],
+    });
+
+    this._headerSubtitle = new Gtk.Label({
+      label: _("Drop files or choose files to begin"),
+      halign: Gtk.Align.START,
+      css_classes: ["dim-label"],
+      wrap: true,
+    });
+
+    const headerBox = new Gtk.Box({
+      orientation: Gtk.Orientation.VERTICAL,
+      spacing: 4,
+      margin_start: 24,
+      margin_end: 24,
+      margin_top: 18,
+      margin_bottom: 6,
+    });
+    headerBox.append(this._headerTitle);
+    headerBox.append(this._headerSubtitle);
+    this.append(headerBox);
+  }
+
   /** Create the scrolled list area that holds file rows. */
   private _buildListArea(): void {
     this._listBox = new Gtk.ListBox({
       selection_mode: Gtk.SelectionMode.NONE,
       css_classes: ["boxed-list"],
-      margin_start: 12,
-      margin_end: 12,
-      margin_top: 12,
+    });
+
+    const clamp = new Adw.Clamp({
+      maximum_size: 760,
+      margin_start: 18,
+      margin_end: 18,
+      margin_top: 6,
+      child: this._listBox,
     });
 
     this._scrolledWindow = new Gtk.ScrolledWindow({
       vexpand: true,
       hscrollbar_policy: Gtk.PolicyType.NEVER,
-      child: this._listBox,
+      child: clamp,
     });
 
     this.append(this._scrolledWindow);
@@ -125,7 +161,7 @@ class _FileListView extends Gtk.Box {
   private _buildActionBar(): void {
     this._clearButton = new Gtk.Button({
       label: _("Clear All"),
-      css_classes: ["destructive-action"],
+      css_classes: ["flat"],
     });
     this._clearButton.connect("clicked", () => {
       this.onClear?.();
@@ -140,26 +176,28 @@ class _FileListView extends Gtk.Box {
       this.onAction?.(this.getFiles());
     });
 
-    const actionClamp = new Adw.Clamp({
-      maximum_size: 400,
-      child: this._actionButton,
-    });
-
     this._actionBar = new Gtk.Box({
       orientation: Gtk.Orientation.HORIZONTAL,
-      spacing: 8,
-      margin_start: 12,
-      margin_end: 12,
-      margin_top: 12,
-      margin_bottom: 12,
+      spacing: 12,
     });
 
+    const actionClamp = new Adw.Clamp({
+      maximum_size: 360,
+      child: this._actionButton,
+    });
     this._actionBar.append(this._clearButton);
     this._actionBar.append(actionClamp);
     // Let the clamp expand to fill the remaining space
     actionClamp.set_hexpand(true);
-
-    this.append(this._actionBar);
+    const actionOuterClamp = new Adw.Clamp({
+      maximum_size: 760,
+      margin_start: 18,
+      margin_end: 18,
+      margin_top: 12,
+      margin_bottom: 18,
+      child: this._actionBar,
+    });
+    this.append(actionOuterClamp);
   }
 
   // -- Private: list management ---------------------------------------------
@@ -203,15 +241,7 @@ class _FileListView extends Gtk.Box {
    */
   private _addMixedGroups(): void {
     // "Files to Encrypt" section
-    const encryptHeader = new Gtk.Label({
-      label: _("Files to Encrypt"),
-      css_classes: ["heading"],
-      halign: Gtk.Align.START,
-      margin_top: 8,
-      margin_bottom: 4,
-      margin_start: 8,
-    });
-    this._listBox.append(encryptHeader);
+    this._addSectionHeader(_("Files to Encrypt"));
 
     this._files.forEach((entry, index) => {
       if (entry.type === "plaintext" || entry.type === "unknown") {
@@ -220,21 +250,47 @@ class _FileListView extends Gtk.Box {
     });
 
     // "Files to Decrypt" section
-    const decryptHeader = new Gtk.Label({
-      label: _("Files to Decrypt"),
-      css_classes: ["heading"],
-      halign: Gtk.Align.START,
-      margin_top: 12,
-      margin_bottom: 4,
-      margin_start: 8,
-    });
-    this._listBox.append(decryptHeader);
+    this._addSectionHeader(_("Files to Decrypt"));
 
     this._files.forEach((entry, index) => {
       if (entry.type === "encrypted") {
         this._addFileRow(entry, index);
       }
     });
+  }
+
+  /**
+   * Add a compact, non-activatable header row between mixed sections.
+   */
+  private _addSectionHeader(label: string): void {
+    const sectionLabel = new Gtk.Label({
+      label,
+      halign: Gtk.Align.START,
+      css_classes: ["caption", "dim-label"],
+      hexpand: false,
+    });
+    const separator = new Gtk.Separator({
+      orientation: Gtk.Orientation.HORIZONTAL,
+      hexpand: true,
+      valign: Gtk.Align.CENTER,
+    });
+    const box = new Gtk.Box({
+      orientation: Gtk.Orientation.HORIZONTAL,
+      spacing: 8,
+      margin_start: 12,
+      margin_end: 12,
+      margin_top: 8,
+      margin_bottom: 4,
+    });
+    box.append(sectionLabel);
+    box.append(separator);
+
+    const row = new Gtk.ListBoxRow({
+      activatable: false,
+      selectable: false,
+    });
+    row.set_child(box);
+    this._listBox.append(row);
   }
 
   /**
@@ -260,14 +316,17 @@ class _FileListView extends Gtk.Box {
     // Type badge
     const badge = new Gtk.Label({
       label: entry.type === "encrypted" ? _("Decrypt") : _("Encrypt"),
-      css_classes: [entry.type === "encrypted" ? "accent" : "success"],
+      css_classes: [
+        "caption",
+        entry.type === "encrypted" ? "accent" : "success",
+      ],
       valign: Gtk.Align.CENTER,
     });
     row.add_suffix(badge);
 
     // Remove button
     const removeBtn = new Gtk.Button({
-      icon_name: "user-trash-symbolic",
+      icon_name: "list-remove-symbolic",
       valign: Gtk.Align.CENTER,
       css_classes: ["flat"],
       tooltip_text: _("Remove file"),
@@ -287,6 +346,12 @@ class _FileListView extends Gtk.Box {
     this._actionButton.set_label(getActionLabel(this._files));
     this._actionButton.set_sensitive(hasFiles);
     this._clearButton.set_sensitive(hasFiles);
+
+    const subtitle = hasFiles
+      ? ngettext("%d file ready", "%d files ready", this._files.length)
+          .replace("%d", String(this._files.length))
+      : _("Drop files or choose files to begin");
+    this._headerSubtitle.set_label(subtitle);
   }
 }
 

@@ -75,6 +75,7 @@ class _PassphraseDialog extends Adw.Dialog {
   // Output location widgets (both modes)
   private _outputDirRow!: Adw.ActionRow;
   private _outputDir: string | null = null;
+  private _clearOutputButton!: Gtk.Button;
 
   // Decrypt-only widgets
   private _useStoredFilenameSwitch!: Adw.SwitchRow;
@@ -83,7 +84,7 @@ class _PassphraseDialog extends Adw.Dialog {
     super();
     this._mode = mode;
 
-    this.set_content_width(400);
+    this.set_content_width(440);
     this.set_title(_("Enter Passphrase"));
 
     this._buildUi();
@@ -107,7 +108,9 @@ class _PassphraseDialog extends Adw.Dialog {
     cancelButton.connect("clicked", () => this.close());
     headerBar.pack_start(cancelButton);
 
-    this._confirmButton = new Gtk.Button({ label: _("Confirm") });
+    this._confirmButton = new Gtk.Button({
+      label: this._mode === "encrypt" ? _("Encrypt") : _("Decrypt"),
+    });
     this._confirmButton.update_property([Gtk.AccessibleProperty.LABEL], [_("Confirm passphrase")]);
     this._confirmButton.add_css_class("suggested-action");
     this._confirmButton.set_sensitive(false);
@@ -118,7 +121,9 @@ class _PassphraseDialog extends Adw.Dialog {
     const preferencesPage = new Adw.PreferencesPage();
 
     // Group 1: Passphrase ---------------------------------------------------
-    const passphraseGroup = new Adw.PreferencesGroup();
+    const passphraseGroup = new Adw.PreferencesGroup({
+      title: _("Passphrase"),
+    });
 
     this._passphraseRow = new Adw.PasswordEntryRow({
       title: _("Passphrase"),
@@ -139,11 +144,14 @@ class _PassphraseDialog extends Adw.Dialog {
     this._strengthBar.set_min_value(0);
     this._strengthBar.set_max_value(1);
     this._strengthBar.set_value(0);
-    this._strengthBar.set_margin_start(12);
-    this._strengthBar.set_margin_end(12);
-    this._strengthBar.set_margin_top(4);
-    this._strengthBar.set_margin_bottom(4);
-    passphraseGroup.add(this._strengthBar);
+    this._strengthBar.set_hexpand(true);
+    this._strengthBar.set_valign(Gtk.Align.CENTER);
+    const strengthRow = new Adw.ActionRow({
+      title: _("Strength"),
+    });
+    strengthRow.set_activatable(false);
+    strengthRow.add_suffix(this._strengthBar);
+    passphraseGroup.add(strengthRow);
 
     // Mismatch label (encrypt mode only)
     this._mismatchLabel = new Gtk.Label({
@@ -151,8 +159,10 @@ class _PassphraseDialog extends Adw.Dialog {
       visible: false,
     });
     this._mismatchLabel.add_css_class("error");
+    this._mismatchLabel.add_css_class("caption");
     this._mismatchLabel.set_margin_start(12);
     this._mismatchLabel.set_margin_end(12);
+    this._mismatchLabel.set_margin_bottom(6);
     if (this._mode === "encrypt") {
       passphraseGroup.add(this._mismatchLabel);
     }
@@ -168,12 +178,15 @@ class _PassphraseDialog extends Adw.Dialog {
     preferencesPage.add(passphraseGroup);
 
     // Group 2: Output Location (both modes) ---------------------------------
-    const outputGroup = new Adw.PreferencesGroup();
+    const outputGroup = new Adw.PreferencesGroup({
+      title: _("Output"),
+    });
 
     this._outputDirRow = new Adw.ActionRow({
       title: _("Output location"),
       subtitle: _("Same as input file"),
     });
+    this._outputDirRow.set_activatable(false);
 
     const folderButton = new Gtk.Button({
       icon_name: "folder-open-symbolic",
@@ -184,24 +197,28 @@ class _PassphraseDialog extends Adw.Dialog {
     folderButton.connect("clicked", () => this._pickOutputDir());
     this._outputDirRow.add_suffix(folderButton);
 
-    const clearButton = new Gtk.Button({
+    this._clearOutputButton = new Gtk.Button({
       icon_name: "edit-clear-symbolic",
       valign: Gtk.Align.CENTER,
     });
-    clearButton.add_css_class("flat");
-    clearButton.update_property([Gtk.AccessibleProperty.LABEL], [_("Reset output location")]);
-    clearButton.connect("clicked", () => {
+    this._clearOutputButton.add_css_class("flat");
+    this._clearOutputButton.set_sensitive(false);
+    this._clearOutputButton.update_property([Gtk.AccessibleProperty.LABEL], [_("Reset output location")]);
+    this._clearOutputButton.connect("clicked", () => {
       this._outputDir = null;
       this._outputDirRow.set_subtitle(_("Same as input file"));
+      this._clearOutputButton.set_sensitive(false);
     });
-    this._outputDirRow.add_suffix(clearButton);
+    this._outputDirRow.add_suffix(this._clearOutputButton);
 
     outputGroup.add(this._outputDirRow);
     preferencesPage.add(outputGroup);
 
     // Group 3: Decrypt Options (decrypt mode only) --------------------------
     if (this._mode === "decrypt") {
-      const decryptGroup = new Adw.PreferencesGroup();
+      const decryptGroup = new Adw.PreferencesGroup({
+        title: _("Options"),
+      });
 
       this._useStoredFilenameSwitch = new Adw.SwitchRow({
         title: _("Use original filename"),
@@ -214,7 +231,9 @@ class _PassphraseDialog extends Adw.Dialog {
 
     // Group 4: Advanced Options (encrypt mode only) -------------------------
     if (this._mode === "encrypt") {
-      const advancedGroup = new Adw.PreferencesGroup();
+      const advancedGroup = new Adw.PreferencesGroup({
+        title: _("Advanced"),
+      });
 
       const expanderRow = new Adw.ExpanderRow({
         title: _("Advanced Options"),
@@ -345,6 +364,7 @@ class _PassphraseDialog extends Adw.Dialog {
         if (path) {
           this._outputDir = path;
           this._outputDirRow.set_subtitle(path);
+          this._clearOutputButton.set_sensitive(true);
         }
       } catch {
         // User cancelled the folder picker — nothing to do.

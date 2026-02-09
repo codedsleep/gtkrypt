@@ -64,9 +64,10 @@ const APP_MENU = `
 // ---------------------------------------------------------------------------
 const DND_CSS = `
 .drop-active {
-  background-color: alpha(@accent_bg_color, 0.1);
+  background-color: alpha(@accent_bg_color, 0.08);
   border: 2px dashed @accent_bg_color;
-  border-radius: 12px;
+  border-radius: 14px;
+  transition: background-color 180ms ease-out, border-color 180ms ease-out;
 }
 `;
 
@@ -172,8 +173,21 @@ class _GtkryptWindow extends Adw.ApplicationWindow {
     chooseButton.connect("clicked", () => this._openFileChooser());
 
     statusPage.set_child(chooseButton);
+    const clamp = new Adw.Clamp({
+      child: statusPage,
+      maximum_size: 560,
+      margin_start: 24,
+      margin_end: 24,
+      margin_top: 24,
+      margin_bottom: 24,
+    });
+    const contentBox = new Gtk.Box({
+      orientation: Gtk.Orientation.VERTICAL,
+      vexpand: true,
+    });
+    contentBox.append(clamp);
 
-    this.setContent(statusPage);
+    this.setContent(contentBox);
     GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
       chooseButton.grab_focus();
       return GLib.SOURCE_REMOVE;

@@ -39,7 +39,7 @@ class _ProgressView extends Gtk.Box {
   constructor(config: Partial<Gtk.Box.ConstructorProps> = {}) {
     super({
       orientation: Gtk.Orientation.VERTICAL,
-      spacing: 12,
+      spacing: 0,
       ...config,
     });
 
@@ -73,7 +73,7 @@ class _ProgressView extends Gtk.Box {
       const label = new Gtk.Label({
         label: name,
         halign: Gtk.Align.START,
-        css_classes: ["caption"],
+        css_classes: ["caption", "dim-label"],
         ellipsize: 3, // Pango.EllipsizeMode.END
       });
 
@@ -87,8 +87,16 @@ class _ProgressView extends Gtk.Box {
       this._fileLabels.push(label);
       this._fileBars.push(bar);
 
-      this._fileProgressBox.append(label);
-      this._fileProgressBox.append(bar);
+      const row = new Gtk.Box({
+        orientation: Gtk.Orientation.VERTICAL,
+        spacing: 4,
+        margin_top: 4,
+        margin_bottom: 4,
+      });
+      row.append(label);
+      row.append(bar);
+
+      this._fileProgressBox.append(row);
     }
 
     // Reset overall progress
@@ -185,23 +193,32 @@ class _ProgressView extends Gtk.Box {
     this._statusPage = new Adw.StatusPage({
       icon_name: "emblem-synchronizing-symbolic",
       title: _("Processing..."),
+      description: _("Keep this window open while your files are being processed."),
       vexpand: false,
     });
 
-    this.append(this._statusPage);
+    const clamp = new Adw.Clamp({
+      maximum_size: 620,
+      margin_start: 24,
+      margin_end: 24,
+      margin_top: 18,
+      child: this._statusPage,
+    });
+    this.append(clamp);
   }
 
   /** Build the scrolled area containing per-file progress bars. */
   private _buildFileProgressArea(): void {
     this._fileProgressBox = new Gtk.Box({
       orientation: Gtk.Orientation.VERTICAL,
-      spacing: 6,
+      spacing: 8,
     });
 
     const clamp = new Adw.Clamp({
-      maximum_size: 500,
-      margin_start: 24,
-      margin_end: 24,
+      maximum_size: 620,
+      margin_start: 18,
+      margin_end: 18,
+      margin_top: 12,
       child: this._fileProgressBox,
     });
 
@@ -222,7 +239,7 @@ class _ProgressView extends Gtk.Box {
     this._overallLabel = new Gtk.Label({
       label: initialOverall,
       halign: Gtk.Align.START,
-      css_classes: ["heading"],
+      css_classes: ["heading", "dim-label"],
     });
 
     this._overallBar = new Gtk.ProgressBar({
@@ -240,9 +257,10 @@ class _ProgressView extends Gtk.Box {
     overallBox.append(this._overallBar);
 
     const clamp = new Adw.Clamp({
-      maximum_size: 500,
-      margin_start: 24,
-      margin_end: 24,
+      maximum_size: 620,
+      margin_start: 18,
+      margin_end: 18,
+      margin_top: 12,
       child: overallBox,
     });
 
@@ -253,10 +271,8 @@ class _ProgressView extends Gtk.Box {
   private _buildCancelButton(): void {
     this._cancelButton = new Gtk.Button({
       label: _("Cancel"),
-      css_classes: ["destructive-action", "pill"],
-      halign: Gtk.Align.CENTER,
-      margin_top: 12,
-      margin_bottom: 24,
+      css_classes: ["flat", "pill"],
+      halign: Gtk.Align.END,
     });
     this._cancelButton.update_property([Gtk.AccessibleProperty.LABEL], [_("Cancel operation")]);
 
@@ -264,7 +280,21 @@ class _ProgressView extends Gtk.Box {
       this.onCancel?.();
     });
 
-    this.append(this._cancelButton);
+    const buttonBox = new Gtk.Box({
+      orientation: Gtk.Orientation.HORIZONTAL,
+      halign: Gtk.Align.FILL,
+      margin_top: 12,
+      margin_bottom: 18,
+    });
+    buttonBox.append(this._cancelButton);
+
+    const clamp = new Adw.Clamp({
+      maximum_size: 620,
+      margin_start: 18,
+      margin_end: 18,
+      child: buttonBox,
+    });
+    this.append(clamp);
   }
 
   // -- Private: helpers -----------------------------------------------------

@@ -72,6 +72,35 @@ function getSummaryIcon(results: FileResult[]): string {
   return "dialog-warning-symbolic";
 }
 
+/**
+ * Build a concise summary description from success/failure counts.
+ *
+ * @param results - Array of per-file results
+ * @returns Description text for the status page
+ */
+function getSummaryDescription(results: FileResult[]): string {
+  const total = results.length;
+  const succeeded = results.filter((r) => r.success).length;
+  const failed = total - succeeded;
+
+  if (failed === 0) {
+    return ngettext("Processed %d file successfully", "Processed %d files successfully", total)
+      .replace("%d", String(total));
+  }
+  if (succeeded === 0) {
+    return ngettext("Failed to process %d file", "Failed to process %d files", total)
+      .replace("%d", String(total));
+  }
+
+  return ngettext(
+    "%d file succeeded, %d failed",
+    "%d files succeeded, %d failed",
+    succeeded,
+  )
+    .replace("%d", String(succeeded))
+    .replace("%d", String(failed));
+}
+
 // ---------------------------------------------------------------------------
 // Result view implementation
 // ---------------------------------------------------------------------------
@@ -91,7 +120,7 @@ class _ResultView extends Gtk.Box {
   constructor(config: Partial<Gtk.Box.ConstructorProps> = {}) {
     super({
       orientation: Gtk.Orientation.VERTICAL,
-      spacing: 12,
+      spacing: 0,
       ...config,
     });
 
@@ -115,6 +144,7 @@ class _ResultView extends Gtk.Box {
     // Update status page
     this._statusPage.set_title(getSummaryTitle(results, mode));
     this._statusPage.set_icon_name(getSummaryIcon(results));
+    this._statusPage.set_description(getSummaryDescription(results));
 
     // Rebuild the results list
     this._clearList();
@@ -136,7 +166,15 @@ class _ResultView extends Gtk.Box {
       vexpand: false,
     });
 
-    this.append(this._statusPage);
+    const clamp = new Adw.Clamp({
+      maximum_size: 620,
+      margin_start: 24,
+      margin_end: 24,
+      margin_top: 18,
+      child: this._statusPage,
+    });
+
+    this.append(clamp);
   }
 
   /** Build the scrolled results list. */
@@ -147,9 +185,10 @@ class _ResultView extends Gtk.Box {
     });
 
     const clamp = new Adw.Clamp({
-      maximum_size: 500,
-      margin_start: 24,
-      margin_end: 24,
+      maximum_size: 620,
+      margin_start: 18,
+      margin_end: 18,
+      margin_top: 12,
       child: this._listBox,
     });
 
@@ -167,12 +206,19 @@ class _ResultView extends Gtk.Box {
     this._buttonBox = new Gtk.Box({
       orientation: Gtk.Orientation.HORIZONTAL,
       spacing: 12,
-      halign: Gtk.Align.CENTER,
-      margin_top: 12,
-      margin_bottom: 24,
+      halign: Gtk.Align.END,
     });
 
-    this.append(this._buttonBox);
+    const clamp = new Adw.Clamp({
+      maximum_size: 620,
+      margin_start: 18,
+      margin_end: 18,
+      margin_top: 12,
+      margin_bottom: 18,
+      child: this._buttonBox,
+    });
+
+    this.append(clamp);
   }
 
   // -- Private: list management ---------------------------------------------
@@ -254,7 +300,7 @@ class _ResultView extends Gtk.Box {
       const firstSuccess = results.find((r) => r.success);
       const showButton = new Gtk.Button({
         label: _("Show in Files"),
-        css_classes: ["suggested-action", "pill"],
+        css_classes: ["suggested-action"],
       });
       showButton.update_property([Gtk.AccessibleProperty.LABEL], [_("Show output in Files")]);
       showButton.connect("clicked", () => {
@@ -273,7 +319,7 @@ class _ResultView extends Gtk.Box {
       mode === "encrypt" ? _("Encrypt More") : _("Decrypt More");
     const moreButton = new Gtk.Button({
       label: moreLabel,
-      css_classes: ["flat", "pill"],
+      css_classes: ["flat"],
     });
     moreButton.update_property([Gtk.AccessibleProperty.LABEL], [_("Start another operation")]);
     moreButton.connect("clicked", () => {
