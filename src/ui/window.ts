@@ -211,6 +211,7 @@ class _GtkryptWindow extends Adw.ApplicationWindow {
     this._registerAction("open_files", () => this._openFileChooser());
     this.application!.set_accels_for_action("win.vault_settings", ["<primary>comma"]);
     this.application!.set_accels_for_action("win.open_files", ["<primary>o"]);
+    this.application!.set_accels_for_action("win.quit", ["<primary>q"]);
 
     // -- Header bar -----------------------------------------------------------
     const headerBar = new Adw.HeaderBar();
@@ -262,6 +263,26 @@ class _GtkryptWindow extends Adw.ApplicationWindow {
 
     // -- Drag and drop --------------------------------------------------------
     this._setupDropTarget();
+
+    // -- Keyboard navigation --------------------------------------------------
+    const keyController = new Gtk.EventControllerKey();
+    keyController.connect("key-pressed", (_ctrl: Gtk.EventControllerKey, keyval: number) => {
+      // Escape: go back in vault navigation or clear file selection
+      if (keyval === Gdk.KEY_Escape) {
+        if (this._appMode === "vault" && this._vaultBrowser) {
+          this._handleVaultLock();
+          return true;
+        }
+        if (this._appMode === "files" && this._files.length > 0) {
+          this._files = [];
+          this._fileListView = null;
+          this.showEmptyState();
+          return true;
+        }
+      }
+      return false;
+    });
+    this.add_controller(keyController);
 
     // -- Wire up file handler -------------------------------------------------
     this.onFilesAdded = (paths) => this._handleFilesAdded(paths);

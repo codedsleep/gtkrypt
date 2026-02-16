@@ -11,8 +11,7 @@
 # production
 /build
 /builddir
-/dist/index.js
-/dist/index.js.map
+/dist/
 /run
 
 # Rust build artifacts
@@ -25,6 +24,8 @@
 /CONTRIBUTING.md
 /PROMPT.md
 /SCOPE.md
+/CODE-REVIEW.md
+/SCOPE-VAULT.md
 
 # misc
 .DS_Store

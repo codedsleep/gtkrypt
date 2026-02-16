@@ -1,73 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- SPDX-License-Identifier: MIT -->
 <component type="desktop-application">
   <id>io.github.gtkrypt</id>
-
-  <name>gtkrypt</name>
-  <summary>Encrypt and decrypt files with a passphrase</summary>
-
-  <metadata_license>MIT</metadata_license>
+  <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
-
+  <name>gtkrypt</name>
+  <summary>Encrypt and decrypt files securely</summary>
   <description>
-    <p>
-      gtkrypt is a minimalist, privacy-first file encryption application for
-      GNOME Linux desktops. Select files via drag-and-drop or the file chooser,
-      enter a passphrase, and gtkrypt handles the rest. Encryption uses
-      AES-256-GCM authenticated encryption with Argon2id key derivation,
-      ensuring your files are protected by modern, auditable cryptography.
-      No accounts, no cloud services, no tracking — just simple, local
-      file encryption.
-    </p>
+    <p>gtkrypt is a GNOME application for encrypting and decrypting files using AES-256-GCM with Argon2id key derivation. It provides a simple drag-and-drop interface for file encryption and a personal vault for organizing sensitive files, records, and notes.</p>
+    <p>Features include:</p>
+    <ul>
+      <li>Encrypt and decrypt files with strong AES-256-GCM encryption</li>
+      <li>Personal data vault with file, record, and note support</li>
+      <li>Optional keyfile-based two-factor encryption</li>
+      <li>Drag-and-drop file handling</li>
+      <li>Batch encryption and decryption</li>
+      <li>Modern GNOME/Libadwaita interface</li>
+    </ul>
   </description>
-
-  <developer id="io.github.gtkrypt">
-    <name>gtkrypt contributors</name>
-  </developer>
-
   <launchable type="desktop-id">io.github.gtkrypt.desktop</launchable>
-
-  <url type="homepage">https://github.com/gtkrypt</url>
-  <url type="bugtracker">https://github.com/gtkrypt/issues</url>
-
-  <provides>
-    <binary>io.github.gtkrypt</binary>
-  </provides>
-
-  <categories>
-    <category>Utility</category>
-    <category>Security</category>
-  </categories>
-
-  <recommends>
-    <display_length compare="ge">360</display_length>
-  </recommends>
-
-  <supports>
-    <control>pointing</control>
-    <control>keyboard</control>
-  </supports>
-
+  <url type="homepage">https://github.com/codedsleep/gtkrypt</url>
+  <url type="bugtracker">https://github.com/codedsleep/gtkrypt/issues</url>
+  <developer id="io.github.gtkrypt">
+    <name>zzz</name>
+  </developer>
   <content_rating type="oars-1.1" />
-
   <releases>
-    <release version="1.0.0" date="2026-02-08">
+    <release version="0.1.0" date="2026-02-16">
       <description>
-        <p>Initial release of gtkrypt.</p>
+        <p>Initial release with file encryption, decryption, and personal vault features.</p>
       </description>
     </release>
   </releases>
-
-  <!-- Screenshots: uncomment and update once screenshots are available.
-  <screenshots>
-    <screenshot type="default">
-      <caption>Main window with file list</caption>
-      <image>https://github.com/gtkrypt/raw/main/data/screenshots/main-window.png</image>
-    </screenshot>
-    <screenshot>
-      <caption>Encryption in progress</caption>
-      <image>https://github.com/gtkrypt/raw/main/data/screenshots/progress.png</image>
-    </screenshot>
-  </screenshots>
-  -->
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
 </component>

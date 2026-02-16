@@ -3,9 +3,6 @@
   <mime-type type="application/x-gtkrypt">
     <comment>gtkrypt encrypted file</comment>
     <glob pattern="*.gtkrypt"/>
-    <magic priority="50">
-      <match type="string" value="GTKRYPT\0" offset="0"/>
-    </magic>
-    <icon name="application-x-gtkrypt"/>
+    <icon name="io.github.gtkrypt"/>
   </mime-type>
 </mime-info>

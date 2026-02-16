@@ -274,6 +274,12 @@ class _VaultListView extends Adw.NavigationPage {
     });
     row.add_prefix(lockIcon);
 
+    // Show keyfile indicator if the vault uses a keyfile
+    const meta = readVaultMetaByName(name);
+    if (meta.keyfile) {
+      row.set_subtitle(_("Keyfile protected"));
+    }
+
     // Navigation arrow suffix
     const arrow = new Gtk.Image({
       icon_name: "go-next-symbolic",
