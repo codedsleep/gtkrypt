@@ -14,6 +14,9 @@ import Adw from "gi://Adw?version=1";
 import type { FileEntry } from "../models/types.js";
 import { _, ngettext } from "../util/i18n.js";
 
+const LIST_MAX_WIDTH = 820;
+const PAGE_MARGIN = 24;
+
 /**
  * Format a byte count into a human-readable string using binary units.
  *
@@ -46,6 +49,8 @@ function getActionLabel(files: FileEntry[]): string {
 
 class _FileListView extends Gtk.Box {
   private _files: FileEntry[] = [];
+  private _summaryTitle!: Gtk.Label;
+  private _summaryMeta!: Gtk.Label;
   private _headerTitle!: Gtk.Label;
   private _headerSubtitle!: Gtk.Label;
   private _listBox!: Gtk.ListBox;
@@ -107,8 +112,36 @@ class _FileListView extends Gtk.Box {
 
   /** Create a simple title area above the list. */
   private _buildHeader(): void {
+    this._summaryTitle = new Gtk.Label({
+      label: _("No Files Queued"),
+      halign: Gtk.Align.START,
+      css_classes: ["heading"],
+    });
+    this._summaryMeta = new Gtk.Label({
+      label: _("Add files to start a secure batch operation"),
+      halign: Gtk.Align.START,
+      css_classes: ["dim-label"],
+      wrap: true,
+    });
+
+    const summaryBox = new Gtk.Box({
+      orientation: Gtk.Orientation.VERTICAL,
+      spacing: 6,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
+    });
+    summaryBox.append(this._summaryTitle);
+    summaryBox.append(this._summaryMeta);
+    const summaryClamp = new Adw.Clamp({
+      maximum_size: LIST_MAX_WIDTH,
+      margin_top: PAGE_MARGIN,
+      margin_bottom: 8,
+      child: summaryBox,
+    });
+    this.append(summaryClamp);
+
     this._headerTitle = new Gtk.Label({
-      label: _("Selected Files"),
+      label: _("Queued Files"),
       halign: Gtk.Align.START,
       css_classes: ["heading"],
     });
@@ -122,11 +155,11 @@ class _FileListView extends Gtk.Box {
 
     const headerBox = new Gtk.Box({
       orientation: Gtk.Orientation.VERTICAL,
-      spacing: 4,
-      margin_start: 24,
-      margin_end: 24,
-      margin_top: 18,
-      margin_bottom: 6,
+      spacing: 6,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
+      margin_top: 0,
+      margin_bottom: 10,
     });
     headerBox.append(this._headerTitle);
     headerBox.append(this._headerSubtitle);
@@ -141,10 +174,9 @@ class _FileListView extends Gtk.Box {
     });
 
     const clamp = new Adw.Clamp({
-      maximum_size: 760,
-      margin_start: 18,
-      margin_end: 18,
-      margin_top: 6,
+      maximum_size: LIST_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
       child: this._listBox,
     });
 
@@ -170,8 +202,8 @@ class _FileListView extends Gtk.Box {
     this._actionButton = new Gtk.Button({
       label: _("Encrypt"),
       css_classes: ["suggested-action"],
-      hexpand: true,
     });
+    this._actionButton.set_size_request(220, -1);
     this._actionButton.connect("clicked", () => {
       this.onAction?.(this.getFiles());
     });
@@ -179,22 +211,23 @@ class _FileListView extends Gtk.Box {
     this._actionBar = new Gtk.Box({
       orientation: Gtk.Orientation.HORIZONTAL,
       spacing: 12,
+      hexpand: true,
     });
+    const spacer = new Gtk.Box({ hexpand: true });
 
     const actionClamp = new Adw.Clamp({
-      maximum_size: 360,
+      maximum_size: 340,
       child: this._actionButton,
     });
     this._actionBar.append(this._clearButton);
+    this._actionBar.append(spacer);
     this._actionBar.append(actionClamp);
-    // Let the clamp expand to fill the remaining space
-    actionClamp.set_hexpand(true);
     const actionOuterClamp = new Adw.Clamp({
-      maximum_size: 760,
-      margin_start: 18,
-      margin_end: 18,
+      maximum_size: LIST_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
       margin_top: 12,
-      margin_bottom: 18,
+      margin_bottom: PAGE_MARGIN,
       child: this._actionBar,
     });
     this.append(actionOuterClamp);
@@ -279,7 +312,7 @@ class _FileListView extends Gtk.Box {
       spacing: 8,
       margin_start: 12,
       margin_end: 12,
-      margin_top: 8,
+      margin_top: 10,
       margin_bottom: 4,
     });
     box.append(sectionLabel);
@@ -343,9 +376,29 @@ class _FileListView extends Gtk.Box {
   /** Update the action button label and sensitivity based on file state. */
   private _updateActionState(): void {
     const hasFiles = this._files.length > 0;
+    const totalBytes = this._files.reduce((sum, file) => sum + file.size, 0);
     this._actionButton.set_label(getActionLabel(this._files));
     this._actionButton.set_sensitive(hasFiles);
     this._clearButton.set_sensitive(hasFiles);
+
+    if (hasFiles) {
+      this._summaryTitle.set_label(
+        _("%s Queue").replace("%s", getActionLabel(this._files)),
+      );
+      const fileCountText = ngettext(
+        "%d file",
+        "%d files",
+        this._files.length,
+      ).replace("%d", String(this._files.length));
+      this._summaryMeta.set_label(
+        `${fileCountText} \u2022 ${formatFileSize(totalBytes)}`,
+      );
+    } else {
+      this._summaryTitle.set_label(_("No Files Queued"));
+      this._summaryMeta.set_label(
+        _("Add files to start a secure batch operation"),
+      );
+    }
 
     const subtitle = hasFiles
       ? ngettext("%d file ready", "%d files ready", this._files.length)

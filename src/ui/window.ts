@@ -98,6 +98,10 @@ const APP_MENU = `
 <menu id='app-menu'>
   <section>
     <item>
+      <attribute name='label' translatable='yes'>_Vault Settings</attribute>
+      <attribute name='action'>win.vault_settings</attribute>
+    </item>
+    <item>
       <attribute name='label' translatable='yes'>_About</attribute>
       <attribute name='action'>win.about</attribute>
     </item>
@@ -115,12 +119,23 @@ const APP_MENU = `
 // ---------------------------------------------------------------------------
 const DND_CSS = `
 .drop-active {
-  background-color: alpha(@accent_bg_color, 0.08);
-  border: 2px dashed @accent_bg_color;
-  border-radius: 14px;
-  transition: background-color 180ms ease-out, border-color 180ms ease-out;
+  background-color: alpha(@accent_bg_color, 0.06);
+  border: 1px dashed alpha(@accent_bg_color, 0.65);
+  border-radius: 12px;
+  transition: background-color 160ms ease-out, border-color 160ms ease-out;
+}
+
+.mode-switcher {
+  background-color: alpha(@headerbar_bg_color, 0.45);
+  border: 1px solid alpha(@headerbar_border_color, 0.4);
+  border-radius: 8px;
+  padding: 2px;
 }
 `;
+
+/** Shared layout values for files-mode pages. */
+const FILES_PAGE_MARGIN = 24;
+const FILES_EMPTY_MAX_WIDTH = 640;
 
 // ---------------------------------------------------------------------------
 // Window implementation
@@ -153,8 +168,8 @@ class _GtkryptWindow extends Adw.ApplicationWindow {
   /** Current unlocked vault state. */
   private _vaultState: VaultState | null = null;
 
-  /** Mode toggle button in the header bar. */
-  private _modeToggle!: Gtk.ToggleButton;
+  /** Visible mode switcher in the header bar. */
+  private _modeSwitcher!: Gtk.StackSwitcher;
 
   /** Callback invoked when the user adds files (via drop or file chooser). */
   public onFilesAdded?: (paths: string[]) => void;
@@ -190,24 +205,24 @@ class _GtkryptWindow extends Adw.ApplicationWindow {
     );
 
     // -- Window actions -------------------------------------------------------
+    this._registerAction("vault_settings", this._onVaultSettingsFromMenu.bind(this));
     this._registerAction("about", this._onAbout.bind(this));
     this._registerAction("quit", () => this.close());
     this._registerAction("open_files", () => this._openFileChooser());
+    this.application!.set_accels_for_action("win.vault_settings", ["<primary>comma"]);
     this.application!.set_accels_for_action("win.open_files", ["<primary>o"]);
 
     // -- Header bar -----------------------------------------------------------
     const headerBar = new Adw.HeaderBar();
-
-    // Mode toggle button (start side)
-    this._modeToggle = new Gtk.ToggleButton({
-      icon_name: "safety-vault-symbolic",
+    this._modeSwitcher = new Gtk.StackSwitcher({
+      halign: Gtk.Align.CENTER,
     });
-    this._modeToggle.update_property(
+    this._modeSwitcher.add_css_class("mode-switcher");
+    this._modeSwitcher.update_property(
       [Gtk.AccessibleProperty.LABEL],
-      [_("Switch to vault mode")],
+      [_("Switch between files and vaults")],
     );
-    this._modeToggle.connect("toggled", () => this._onModeToggle());
-    headerBar.pack_start(this._modeToggle);
+    headerBar.set_title_widget(this._modeSwitcher);
 
     const menuButton = this._buildMenuButton();
     menuButton.update_property([Gtk.AccessibleProperty.LABEL], [_("Open application menu")]);
@@ -219,18 +234,23 @@ class _GtkryptWindow extends Adw.ApplicationWindow {
     // -- Mode stack -----------------------------------------------------------
     this._modeStack = new Gtk.Stack({
       transition_type: Gtk.StackTransitionType.SLIDE_LEFT_RIGHT,
+      vexpand: true,
+      hexpand: true,
     });
 
     // Files mode content container
     this._filesContent = new Gtk.Box({
       orientation: Gtk.Orientation.VERTICAL,
       vexpand: true,
+      hexpand: true,
     });
-    this._modeStack.add_named(this._filesContent, "files");
+    this._modeStack.add_titled(this._filesContent, "files", _("Files"));
 
     // Vault mode navigation
     this._buildVaultNavigation();
-    this._modeStack.add_named(this._vaultNavView, "vault");
+    this._modeStack.add_titled(this._vaultNavView, "vault", _("Vaults"));
+    this._modeSwitcher.set_stack(this._modeStack);
+    this._modeStack.connect("notify::visible-child-name", () => this._onModeChanged());
 
     this._toastOverlay.set_child(this._modeStack);
 
@@ -247,6 +267,8 @@ class _GtkryptWindow extends Adw.ApplicationWindow {
     this.onFilesAdded = (paths) => this._handleFilesAdded(paths);
 
     // -- Initial state --------------------------------------------------------
+    this._modeStack.set_visible_child_name("files");
+    this._onModeChanged();
     this._showFilesEmptyState();
   }
 
@@ -254,24 +276,12 @@ class _GtkryptWindow extends Adw.ApplicationWindow {
   // Mode switching
   // -------------------------------------------------------------------------
 
-  /** Handle mode toggle button click. */
-  private _onModeToggle(): void {
-    if (this._modeToggle.get_active()) {
-      this._appMode = "vault";
-      this._modeStack.set_visible_child_name("vault");
-      this._modeToggle.update_property(
-        [Gtk.AccessibleProperty.LABEL],
-        [_("Switch to files mode")],
-      );
-      // Refresh vault list when entering vault mode
+  /** Keep mode-dependent UI in sync with the visible stack page. */
+  private _onModeChanged(): void {
+    const visible = this._modeStack.get_visible_child_name();
+    this._appMode = visible === "vault" ? "vault" : "files";
+    if (this._appMode === "vault") {
       this._vaultListView.refresh();
-    } else {
-      this._appMode = "files";
-      this._modeStack.set_visible_child_name("files");
-      this._modeToggle.update_property(
-        [Gtk.AccessibleProperty.LABEL],
-        [_("Switch to vault mode")],
-      );
     }
   }
 
@@ -980,17 +990,16 @@ class _GtkryptWindow extends Adw.ApplicationWindow {
     });
     chooseButton.update_property([Gtk.AccessibleProperty.LABEL], [_("Choose files")]);
     chooseButton.add_css_class("suggested-action");
-    chooseButton.add_css_class("pill");
     chooseButton.connect("clicked", () => this._openFileChooser());
 
     statusPage.set_child(chooseButton);
     const clamp = new Adw.Clamp({
       child: statusPage,
-      maximum_size: 560,
-      margin_start: 24,
-      margin_end: 24,
-      margin_top: 24,
-      margin_bottom: 24,
+      maximum_size: FILES_EMPTY_MAX_WIDTH,
+      margin_start: FILES_PAGE_MARGIN,
+      margin_end: FILES_PAGE_MARGIN,
+      margin_top: FILES_PAGE_MARGIN,
+      margin_bottom: FILES_PAGE_MARGIN,
     });
     const contentBox = new Gtk.Box({
       orientation: Gtk.Orientation.VERTICAL,
@@ -1024,7 +1033,7 @@ class _GtkryptWindow extends Adw.ApplicationWindow {
   private _handleFilesAdded(paths: string[]): void {
     // Switch to files mode if in vault mode
     if (this._appMode === "vault") {
-      this._modeToggle.set_active(false);
+      this._modeStack.set_visible_child_name("files");
     }
 
     const symlinks: string[] = [];
@@ -1312,6 +1321,23 @@ class _GtkryptWindow extends Adw.ApplicationWindow {
       developers: ["zzz"],
       copyright: "\u00A9 2026 zzz",
     });
+    dialog.present(this);
+  }
+
+  /** Handler for win.vault_settings action from the application popover menu. */
+  private _onVaultSettingsFromMenu(): void {
+    if (this._vaultState) {
+      this._handleVaultSettings();
+      return;
+    }
+
+    // Route users to the vault view where settings become available once unlocked.
+    this._modeStack.set_visible_child_name("vault");
+    const dialog = new Adw.AlertDialog({
+      heading: _("Unlock a Vault to Open Settings"),
+      body: _("Vault settings are available after you unlock a vault."),
+    });
+    dialog.add_response("ok", _("OK"));
     dialog.present(this);
   }
 

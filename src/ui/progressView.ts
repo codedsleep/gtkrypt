@@ -10,6 +10,9 @@ import GObject from "gi://GObject";
 import Adw from "gi://Adw?version=1";
 
 import { _ } from "../util/i18n.js";
+
+const CONTENT_MAX_WIDTH = 760;
+const PAGE_MARGIN = 24;
 // ---------------------------------------------------------------------------
 // Progress view implementation
 // ---------------------------------------------------------------------------
@@ -198,10 +201,10 @@ class _ProgressView extends Gtk.Box {
     });
 
     const clamp = new Adw.Clamp({
-      maximum_size: 620,
-      margin_start: 24,
-      margin_end: 24,
-      margin_top: 18,
+      maximum_size: CONTENT_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
+      margin_top: PAGE_MARGIN,
       child: this._statusPage,
     });
     this.append(clamp);
@@ -215,9 +218,9 @@ class _ProgressView extends Gtk.Box {
     });
 
     const clamp = new Adw.Clamp({
-      maximum_size: 620,
-      margin_start: 18,
-      margin_end: 18,
+      maximum_size: CONTENT_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
       margin_top: 12,
       child: this._fileProgressBox,
     });
@@ -257,9 +260,9 @@ class _ProgressView extends Gtk.Box {
     overallBox.append(this._overallBar);
 
     const clamp = new Adw.Clamp({
-      maximum_size: 620,
-      margin_start: 18,
-      margin_end: 18,
+      maximum_size: CONTENT_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
       margin_top: 12,
       child: overallBox,
     });
@@ -271,7 +274,7 @@ class _ProgressView extends Gtk.Box {
   private _buildCancelButton(): void {
     this._cancelButton = new Gtk.Button({
       label: _("Cancel"),
-      css_classes: ["flat", "pill"],
+      css_classes: ["flat"],
       halign: Gtk.Align.END,
     });
     this._cancelButton.update_property([Gtk.AccessibleProperty.LABEL], [_("Cancel operation")]);
@@ -282,16 +285,16 @@ class _ProgressView extends Gtk.Box {
 
     const buttonBox = new Gtk.Box({
       orientation: Gtk.Orientation.HORIZONTAL,
-      halign: Gtk.Align.FILL,
+      halign: Gtk.Align.END,
       margin_top: 12,
-      margin_bottom: 18,
+      margin_bottom: PAGE_MARGIN,
     });
     buttonBox.append(this._cancelButton);
 
     const clamp = new Adw.Clamp({
-      maximum_size: 620,
-      margin_start: 18,
-      margin_end: 18,
+      maximum_size: CONTENT_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
       child: buttonBox,
     });
     this.append(clamp);

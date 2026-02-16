@@ -151,9 +151,11 @@ export async function createVault(
 
   let mtime: number;
   const manifest = createEmptyManifest(name, kdfPreset);
+  log("info", `createVault: saving manifest for "${name}" in ${dir}`);
   try {
     mtime = await saveManifest(dir, manifest, passphrase, undefined, keyfilePath);
   } catch (e) {
+    log("error", `createVault: manifest save failed: ${e}`);
     // Clean up the partially-created vault directory so it doesn't
     // appear in the vault list without a usable manifest.
     try {

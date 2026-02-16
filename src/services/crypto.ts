@@ -146,12 +146,27 @@ function readProgressLines(
   cancellable: Gio.Cancellable | null,
 ): void {
   if (onProgress === undefined) {
-    // Nothing to do -- close the stream so the subprocess is not blocked.
-    try {
-      dataStream.close(null);
-    } catch {
-      // Ignore close errors.
+    // No progress listener -- drain stdout silently so the subprocess
+    // is not killed by a broken-pipe signal when it writes progress.
+    function drain(): void {
+      dataStream.read_line_async(
+        GLib.PRIORITY_DEFAULT,
+        cancellable,
+        (_stream, result) => {
+          try {
+            const [line] = dataStream.read_line_finish_utf8(result);
+            if (line === null) {
+              try { dataStream.close(null); } catch { /* ignore */ }
+              return;
+            }
+            drain();
+          } catch {
+            try { dataStream.close(null); } catch { /* ignore */ }
+          }
+        },
+      );
     }
+    drain();
     return;
   }
 
@@ -335,7 +350,7 @@ export function encrypt(
             const [stderrText] = stderrStream.read_line_utf8(null);
             stderrStream.close(null);
 
-            log("warn", `Encrypt failed with exit code ${exitCode}`);
+            log("warn", `Encrypt failed with exit code ${exitCode}: ${stderrText ?? "(no stderr)"}`);
             reject(mapExitCodeToError(exitCode, stderrText ?? ""));
           } else {
             // Process was killed by a signal.
@@ -472,7 +487,7 @@ export function decrypt(
             const [stderrText] = stderrStream.read_line_utf8(null);
             stderrStream.close(null);
 
-            log("warn", `Decrypt failed with exit code ${exitCode}`);
+            log("warn", `Decrypt failed (input=${inputPath}) with exit code ${exitCode}: ${stderrText ?? "(no stderr)"}`);
             reject(mapExitCodeToError(exitCode, stderrText ?? ""));
           } else {
             // Process was killed by a signal.

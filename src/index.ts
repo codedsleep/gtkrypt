@@ -30,8 +30,8 @@ class _Application extends Adw.Application {
     if (!win) {
       win = new GtkryptWindow({
         title: _("gtkrypt"),
-        default_width: 500,
-        default_height: 600,
+        default_width: 980,
+        default_height: 720,
         application: this,
       });
     }

@@ -179,7 +179,13 @@ export function listVaultNames(): string[] {
   let info: Gio.FileInfo | null;
   while ((info = enumerator.next_file(null)) !== null) {
     if (info.get_file_type() === Gio.FileType.DIRECTORY) {
-      names.push(info.get_name());
+      const name = info.get_name();
+      // Only list vaults that have a manifest file (skip ghost directories
+      // left behind by failed vault creation).
+      const manifestPath = GLib.build_filenamev([baseDir, name, "manifest.gtkrypt"]);
+      if (GLib.file_test(manifestPath, GLib.FileTest.EXISTS)) {
+        names.push(name);
+      }
     }
   }
   enumerator.close(null);

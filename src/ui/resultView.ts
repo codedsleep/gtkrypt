@@ -12,6 +12,9 @@ import Gio from "gi://Gio";
 import Adw from "gi://Adw?version=1";
 
 import { _, ngettext } from "../util/i18n.js";
+
+const CONTENT_MAX_WIDTH = 760;
+const PAGE_MARGIN = 24;
 // ---------------------------------------------------------------------------
 // Supporting types
 // ---------------------------------------------------------------------------
@@ -167,10 +170,10 @@ class _ResultView extends Gtk.Box {
     });
 
     const clamp = new Adw.Clamp({
-      maximum_size: 620,
-      margin_start: 24,
-      margin_end: 24,
-      margin_top: 18,
+      maximum_size: CONTENT_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
+      margin_top: PAGE_MARGIN,
       child: this._statusPage,
     });
 
@@ -185,9 +188,9 @@ class _ResultView extends Gtk.Box {
     });
 
     const clamp = new Adw.Clamp({
-      maximum_size: 620,
-      margin_start: 18,
-      margin_end: 18,
+      maximum_size: CONTENT_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
       margin_top: 12,
       child: this._listBox,
     });
@@ -210,11 +213,11 @@ class _ResultView extends Gtk.Box {
     });
 
     const clamp = new Adw.Clamp({
-      maximum_size: 620,
-      margin_start: 18,
-      margin_end: 18,
+      maximum_size: CONTENT_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
       margin_top: 12,
-      margin_bottom: 18,
+      margin_bottom: PAGE_MARGIN,
       child: this._buttonBox,
     });
 

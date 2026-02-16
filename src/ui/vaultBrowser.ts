@@ -26,7 +26,7 @@ import {
   filterRecent,
   sortItems,
 } from "../services/search.js";
-import { _ } from "../util/i18n.js";
+import { _, ngettext } from "../util/i18n.js";
 
 // ---------------------------------------------------------------------------
 // Add-item popover menu XML
@@ -78,6 +78,9 @@ const RECENT_LIMIT = 20;
 /** Debounce delay for search input in milliseconds. */
 const SEARCH_DEBOUNCE_MS = 300;
 
+const PAGE_MARGIN = 24;
+const CONTENT_MAX_WIDTH = 920;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -123,6 +126,7 @@ class _VaultBrowser extends Adw.NavigationPage {
   private _searchEntry!: Gtk.SearchEntry;
   private _viewToggle!: Gtk.ToggleButton;
   private _filterDropDown!: Gtk.DropDown;
+  private _resultsSummary!: Gtk.Label;
   private _filterModel!: Gtk.StringList;
   private _contentStack!: Gtk.Stack;
   private _listBox!: Gtk.ListBox;
@@ -173,13 +177,35 @@ class _VaultBrowser extends Adw.NavigationPage {
       spacing: 0,
     });
 
-    // Search bar (5.4)
+    // Search and filter controls
     this._buildSearchBar();
-    mainBox.append(this._searchBar);
-
-    // Category filter bar (5.5)
     this._buildFilterBar();
-    mainBox.append(this._filterDropDown);
+    const filterRow = new Gtk.Box({
+      orientation: Gtk.Orientation.HORIZONTAL,
+      spacing: 10,
+      valign: Gtk.Align.CENTER,
+    });
+    this._filterDropDown.set_hexpand(true);
+    filterRow.append(this._filterDropDown);
+    filterRow.append(this._resultsSummary);
+
+    const controlsBox = new Gtk.Box({
+      orientation: Gtk.Orientation.VERTICAL,
+      spacing: 8,
+    });
+    controlsBox.append(this._searchBar);
+    controlsBox.append(filterRow);
+
+    mainBox.append(
+      new Adw.Clamp({
+        maximum_size: CONTENT_MAX_WIDTH,
+        margin_start: PAGE_MARGIN,
+        margin_end: PAGE_MARGIN,
+        margin_top: 12,
+        margin_bottom: 6,
+        child: controlsBox,
+      }),
+    );
 
     // Content area with stack (5.6)
     this._buildContentArea();
@@ -407,15 +433,18 @@ class _VaultBrowser extends Adw.NavigationPage {
 
     this._filterDropDown = new Gtk.DropDown({
       model: this._filterModel,
-      margin_start: 12,
-      margin_end: 12,
-      margin_top: 6,
-      margin_bottom: 6,
     });
     this._filterDropDown.update_property(
       [Gtk.AccessibleProperty.LABEL],
       [_("Filter items by category")],
     );
+
+    this._resultsSummary = new Gtk.Label({
+      label: _("0 items"),
+      halign: Gtk.Align.END,
+      valign: Gtk.Align.CENTER,
+      css_classes: ["dim-label", "caption"],
+    });
 
     this._filterDropDown.connect("notify::selected", () => {
       this._onFilterChanged();
@@ -491,11 +520,11 @@ class _VaultBrowser extends Adw.NavigationPage {
     this._listBox.add_css_class("boxed-list");
 
     const listClamp = new Adw.Clamp({
-      maximum_size: 800,
-      margin_start: 12,
-      margin_end: 12,
+      maximum_size: CONTENT_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
       margin_top: 6,
-      margin_bottom: 12,
+      margin_bottom: PAGE_MARGIN,
       child: this._listBox,
     });
 
@@ -512,12 +541,8 @@ class _VaultBrowser extends Adw.NavigationPage {
       min_children_per_line: 2,
       max_children_per_line: 6,
       selection_mode: Gtk.SelectionMode.SINGLE,
-      margin_start: 12,
-      margin_end: 12,
-      margin_top: 6,
-      margin_bottom: 12,
-      row_spacing: 8,
-      column_spacing: 8,
+      row_spacing: 12,
+      column_spacing: 12,
     });
 
     // Connect grid activation once (handler uses _gridItems for lookup)
@@ -534,10 +559,19 @@ class _VaultBrowser extends Adw.NavigationPage {
       }
     });
 
+    const gridClamp = new Adw.Clamp({
+      maximum_size: CONTENT_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
+      margin_top: 6,
+      margin_bottom: PAGE_MARGIN,
+      child: this._flowBox,
+    });
+
     this._gridScrolled = new Gtk.ScrolledWindow({
       vexpand: true,
       hscrollbar_policy: Gtk.PolicyType.NEVER,
-      child: this._flowBox,
+      child: gridClamp,
     });
     this._contentStack.add_named(this._gridScrolled, "grid");
 
@@ -547,7 +581,17 @@ class _VaultBrowser extends Adw.NavigationPage {
       title: _("No Results"),
       description: _("Try a different search term or filter"),
     });
-    this._contentStack.add_named(this._emptyStatus, "empty");
+    this._contentStack.add_named(
+      new Adw.Clamp({
+        maximum_size: CONTENT_MAX_WIDTH,
+        margin_start: PAGE_MARGIN,
+        margin_end: PAGE_MARGIN,
+        margin_top: PAGE_MARGIN,
+        margin_bottom: PAGE_MARGIN,
+        child: this._emptyStatus,
+      }),
+      "empty",
+    );
 
     // Set initial visible child
     this._contentStack.set_visible_child_name("list");
@@ -652,6 +696,12 @@ class _VaultBrowser extends Adw.NavigationPage {
     // Step 6: Rebuild views
     this._rebuildListView(items, missingIds);
     this._rebuildGridView(items, missingIds);
+    this._resultsSummary.set_label(
+      ngettext("%d item", "%d items", items.length).replace(
+        "%d",
+        String(items.length),
+      ),
+    );
 
     // Step 7: Show empty state if no results
     if (items.length === 0) {
@@ -856,14 +906,15 @@ class _VaultBrowser extends Adw.NavigationPage {
 
     const box = new Gtk.Box({
       orientation: Gtk.Orientation.VERTICAL,
-      spacing: 6,
+      spacing: 8,
       halign: Gtk.Align.CENTER,
       valign: Gtk.Align.CENTER,
-      margin_start: 8,
-      margin_end: 8,
+      margin_start: 12,
+      margin_end: 12,
       margin_top: 12,
       margin_bottom: 12,
     });
+    box.set_size_request(168, -1);
 
     // Thumbnail or category icon
     let iconWidget: Gtk.Widget;

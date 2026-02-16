@@ -20,6 +20,9 @@ import { VaultCreateDialog } from "./vaultCreateDialog.js";
 import { showDeleteDialog } from "./vaultDeleteDialog.js";
 import { readVaultMetaByName } from "../services/vault.js";
 
+const PAGE_MARGIN = 24;
+const CONTENT_MAX_WIDTH = 720;
+
 // ---------------------------------------------------------------------------
 // Vault list view implementation
 // ---------------------------------------------------------------------------
@@ -46,10 +49,15 @@ class _VaultListView extends Adw.NavigationPage {
   private _contentBox!: Gtk.Box;
   private _vaultGroup!: Adw.PreferencesGroup;
   private _emptyState!: Adw.StatusPage;
+  private _emptyClamp!: Adw.Clamp;
+  private _emptyImportClamp!: Adw.Clamp;
   private _scrolledWindow!: Gtk.ScrolledWindow;
   private _listClamp!: Adw.Clamp;
   private _createButton!: Gtk.Button;
   private _importButton!: Gtk.Button;
+  private _emptyImportButton!: Gtk.Button;
+  private _footerBox!: Gtk.Box;
+  private _footerClamp!: Adw.Clamp;
 
   /** Cached vault names from the last refresh. */
   private _vaultNames: string[] = [];
@@ -99,6 +107,14 @@ class _VaultListView extends Adw.NavigationPage {
     emptyCreateButton.add_css_class("pill");
     emptyCreateButton.connect("clicked", () => this._openCreateDialog());
     this._emptyState.set_child(emptyCreateButton);
+    this._emptyClamp = new Adw.Clamp({
+      maximum_size: CONTENT_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
+      margin_top: PAGE_MARGIN,
+      margin_bottom: 12,
+      child: this._emptyState,
+    });
 
     // -- Vault list area ----------------------------------------------------
     this._vaultGroup = new Adw.PreferencesGroup({
@@ -109,7 +125,11 @@ class _VaultListView extends Adw.NavigationPage {
     listPage.add(this._vaultGroup);
 
     this._listClamp = new Adw.Clamp({
-      maximum_size: 600,
+      maximum_size: CONTENT_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
+      margin_top: 12,
+      margin_bottom: 0,
       child: listPage,
     });
 
@@ -129,9 +149,6 @@ class _VaultListView extends Adw.NavigationPage {
       [_("Create new vault")],
     );
     this._createButton.add_css_class("suggested-action");
-    this._createButton.add_css_class("pill");
-    this._createButton.set_margin_top(12);
-    this._createButton.set_margin_bottom(24);
     this._createButton.connect("clicked", () => this._openCreateDialog());
 
     // -- Import button (shown below create button) --------------------------
@@ -143,10 +160,51 @@ class _VaultListView extends Adw.NavigationPage {
       [Gtk.AccessibleProperty.LABEL],
       [_("Import vault from backup")],
     );
-    this._importButton.add_css_class("pill");
-    this._importButton.set_margin_top(6);
-    this._importButton.set_margin_bottom(24);
+    this._importButton.add_css_class("flat");
     this._importButton.connect("clicked", () => this._openImportDialog());
+
+    this._emptyImportButton = new Gtk.Button({
+      label: _("Import Vault\u2026"),
+      halign: Gtk.Align.CENTER,
+    });
+    this._emptyImportButton.update_property(
+      [Gtk.AccessibleProperty.LABEL],
+      [_("Import vault from backup")],
+    );
+    this._emptyImportButton.connect("clicked", () => this._openImportDialog());
+
+    this._footerBox = new Gtk.Box({
+      orientation: Gtk.Orientation.VERTICAL,
+      spacing: 8,
+      margin_top: 8,
+      margin_bottom: 0,
+      halign: Gtk.Align.CENTER,
+    });
+
+    const quickActionsRow = new Gtk.Box({
+      orientation: Gtk.Orientation.HORIZONTAL,
+      spacing: 8,
+      halign: Gtk.Align.CENTER,
+    });
+    quickActionsRow.append(this._createButton);
+    quickActionsRow.append(this._importButton);
+    this._footerBox.append(quickActionsRow);
+
+    this._footerClamp = new Adw.Clamp({
+      maximum_size: CONTENT_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
+      margin_bottom: PAGE_MARGIN,
+      child: this._footerBox,
+    });
+
+    this._emptyImportClamp = new Adw.Clamp({
+      maximum_size: CONTENT_MAX_WIDTH,
+      margin_start: PAGE_MARGIN,
+      margin_end: PAGE_MARGIN,
+      margin_bottom: PAGE_MARGIN,
+      child: this._emptyImportButton,
+    });
 
     this.set_child(this._contentBox);
   }
@@ -166,8 +224,8 @@ class _VaultListView extends Adw.NavigationPage {
     }
 
     if (this._vaultNames.length === 0) {
-      this._contentBox.append(this._emptyState);
-      this._contentBox.append(this._importButton);
+      this._contentBox.append(this._emptyClamp);
+      this._contentBox.append(this._emptyImportClamp);
       return;
     }
 
@@ -180,8 +238,7 @@ class _VaultListView extends Adw.NavigationPage {
     }
 
     this._contentBox.append(this._scrolledWindow);
-    this._contentBox.append(this._createButton);
-    this._contentBox.append(this._importButton);
+    this._contentBox.append(this._footerClamp);
   }
 
   /** Remove all rows from the preferences group. */
