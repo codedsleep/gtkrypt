@@ -118,3 +118,111 @@ export function secureWipe(path: string): void {
   // Delete the file
   file.delete(null);
 }
+
+// ---------------------------------------------------------------------------
+// Vault directory helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Get the base directory where all vaults are stored.
+ *
+ * @returns Absolute path to `~/.local/share/gtkrypt/vaults/`.
+ */
+export function getVaultsBaseDir(): string {
+  return GLib.build_filenamev([GLib.get_user_data_dir(), "gtkrypt", "vaults"]);
+}
+
+/**
+ * Get the directory path for a named vault.
+ *
+ * @param name - Vault name (used as directory name).
+ * @returns Absolute path to the vault directory.
+ */
+export function getVaultDir(name: string): string {
+  return GLib.build_filenamev([getVaultsBaseDir(), name]);
+}
+
+/**
+ * Create the directory structure for a new vault.
+ *
+ * Creates the vault directory along with `items/` and `thumbs/`
+ * subdirectories. Uses mode `0o700` for privacy.
+ *
+ * @param name - Vault name.
+ */
+export function ensureVaultDir(name: string): void {
+  const vaultDir = getVaultDir(name);
+  GLib.mkdir_with_parents(GLib.build_filenamev([vaultDir, "items"]), 0o700);
+  GLib.mkdir_with_parents(GLib.build_filenamev([vaultDir, "thumbs"]), 0o700);
+}
+
+/**
+ * List the names of all vaults in the base directory.
+ *
+ * @returns Array of vault directory names.
+ */
+export function listVaultNames(): string[] {
+  const baseDir = getVaultsBaseDir();
+  const dir = Gio.File.new_for_path(baseDir);
+
+  if (!dir.query_exists(null)) {
+    return [];
+  }
+
+  const names: string[] = [];
+  const enumerator = dir.enumerate_children(
+    "standard::name,standard::type",
+    Gio.FileQueryInfoFlags.NONE,
+    null,
+  );
+
+  let info: Gio.FileInfo | null;
+  while ((info = enumerator.next_file(null)) !== null) {
+    if (info.get_file_type() === Gio.FileType.DIRECTORY) {
+      names.push(info.get_name());
+    }
+  }
+  enumerator.close(null);
+
+  return names.sort();
+}
+
+/**
+ * Recursively delete a vault directory and all its contents.
+ *
+ * @param name - Vault name.
+ */
+export function deleteVaultDir(name: string): void {
+  const vaultDir = getVaultDir(name);
+  deleteRecursive(Gio.File.new_for_path(vaultDir));
+}
+
+/**
+ * Recursively delete a file or directory.
+ *
+ * @param file - The GIO file to delete.
+ */
+function deleteRecursive(file: Gio.File): void {
+  const info = file.query_info(
+    "standard::type",
+    Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
+    null,
+  );
+
+  if (info.get_file_type() === Gio.FileType.DIRECTORY) {
+    const enumerator = file.enumerate_children(
+      "standard::name,standard::type",
+      Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
+      null,
+    );
+
+    let childInfo: Gio.FileInfo | null;
+    while ((childInfo = enumerator.next_file(null)) !== null) {
+      const child = file.get_child(childInfo.get_name());
+      deleteRecursive(child);
+    }
+    enumerator.close(null);
+  }
+
+  file.delete(null);
+}

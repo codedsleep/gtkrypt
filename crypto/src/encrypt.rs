@@ -16,7 +16,7 @@ use crate::progress;
 pub struct EncryptOptions {
     pub input_path: String,
     pub output_path: String,
-    pub passphrase: String,
+    pub passphrase: Vec<u8>,
     pub time_cost: u32,
     pub memory_cost_kib: u32,
     pub parallelism: u32,
@@ -46,7 +46,7 @@ pub fn encrypt(opts: &EncryptOptions) -> Result<(), EncryptError> {
 
     progress::emit_progress("kdf", 0, 0);
 
-    let key = kdf::derive_key(opts.passphrase.as_bytes(), &salt, &kdf_params)
+    let key = kdf::derive_key(&opts.passphrase, &salt, &kdf_params)
         .map_err(|e| EncryptError::Internal(format!("KDF failed: {}", e)))?;
 
     progress::emit_progress("kdf", 1, 1);
@@ -274,7 +274,7 @@ mod tests {
         let opts = EncryptOptions {
             input_path: input_file.path().to_str().unwrap().to_string(),
             output_path: output_path.to_str().unwrap().to_string(),
-            passphrase: "test_password".to_string(),
+            passphrase: b"test_password".to_vec(),
             time_cost: 1,
             memory_cost_kib: 1024,
             parallelism: 1,
@@ -313,7 +313,7 @@ mod tests {
         let opts = EncryptOptions {
             input_path: input_file.path().to_str().unwrap().to_string(),
             output_path: output_path.to_str().unwrap().to_string(),
-            passphrase: "password123".to_string(),
+            passphrase: b"password123".to_vec(),
             time_cost: 1,
             memory_cost_kib: 1024,
             parallelism: 1,

@@ -76,3 +76,64 @@ export interface CryptoResult {
   outputPath: string;
   error?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Vault types
+// ---------------------------------------------------------------------------
+
+/** The kind of item stored in a vault. */
+export type VaultItemType = "file" | "record" | "note";
+
+/** Sort order for vault item listings. */
+export type SortOrder = "name" | "date" | "category";
+
+/** Display mode for vault browser. */
+export type ViewMode = "grid" | "list";
+
+/** Defines a vault item category (built-in or user-created). */
+export interface CategoryDef {
+  id: string;
+  label: string;
+  icon: string;
+  builtin: boolean;
+}
+
+/** Per-vault user preferences. */
+export interface VaultSettings {
+  autoLockMinutes: number;
+  defaultCategory: string;
+  sortOrder: SortOrder;
+  viewMode: ViewMode;
+}
+
+/** A single item stored in a vault. */
+export interface VaultItem {
+  id: string;
+  type: VaultItemType;
+  name: string;
+  category: string;
+  tags: string[];
+  createdAt: string;
+  modifiedAt: string;
+  accessedAt: string;
+  favorite: boolean;
+  filename?: string;
+  mimeType?: string;
+  fileSize?: number;
+  templateId?: string;
+  fields?: Record<string, string>;
+  notes?: string;
+  hasThumbnail?: boolean;
+}
+
+/** Encrypted manifest tracking all items in a vault. */
+export interface VaultManifest {
+  version: 1;
+  name: string;
+  createdAt: string;
+  modifiedAt: string;
+  kdfPreset: KdfPreset;
+  categories: CategoryDef[];
+  items: VaultItem[];
+  settings: VaultSettings;
+}

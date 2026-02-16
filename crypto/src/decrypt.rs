@@ -13,7 +13,7 @@ use crate::progress;
 pub struct DecryptOptions {
     pub input_path: String,
     pub output_path: String,
-    pub passphrase: String,
+    pub passphrase: Vec<u8>,
 }
 
 /// Perform streaming chunked decryption of a gtkrypt container file and write
@@ -85,7 +85,7 @@ pub fn decrypt(opts: &DecryptOptions) -> Result<(), DecryptError> {
     progress::emit_progress("kdf", 0, 0);
 
     let key = kdf::derive_key(
-        opts.passphrase.as_bytes(),
+        &opts.passphrase,
         &header_obj.salt,
         &header_obj.kdf_params,
     )
@@ -266,7 +266,7 @@ mod tests {
         let opts = EncryptOptions {
             input_path: input_file.path().to_str().unwrap().to_string(),
             output_path: output_path.to_str().unwrap().to_string(),
-            passphrase: passphrase.to_string(),
+            passphrase: passphrase.as_bytes().to_vec(),
             time_cost: 1,
             memory_cost_kib: 1024,
             parallelism: 1,
@@ -288,7 +288,7 @@ mod tests {
         let opts = DecryptOptions {
             input_path: encrypted_path,
             output_path: decrypted_path.to_str().unwrap().to_string(),
-            passphrase: passphrase.to_string(),
+            passphrase: passphrase.as_bytes().to_vec(),
         };
 
         decrypt(&opts).unwrap();
@@ -306,7 +306,7 @@ mod tests {
         let opts = DecryptOptions {
             input_path: encrypted_path,
             output_path: decrypted_path.to_str().unwrap().to_string(),
-            passphrase: "wrong_password".to_string(),
+            passphrase: b"wrong_password".to_vec(),
         };
 
         let result = decrypt(&opts);
@@ -327,7 +327,7 @@ mod tests {
         let opts = DecryptOptions {
             input_path: input_file.path().to_str().unwrap().to_string(),
             output_path: decrypted_path.to_str().unwrap().to_string(),
-            passphrase: "any_password".to_string(),
+            passphrase: b"any_password".to_vec(),
         };
 
         let result = decrypt(&opts);
@@ -353,7 +353,7 @@ mod tests {
         let opts = DecryptOptions {
             input_path: truncated_path.to_str().unwrap().to_string(),
             output_path: decrypted_path.to_str().unwrap().to_string(),
-            passphrase: "password".to_string(),
+            passphrase: b"password".to_vec(),
         };
 
         let result = decrypt(&opts);
@@ -371,7 +371,7 @@ mod tests {
         let opts = DecryptOptions {
             input_path: encrypted_path,
             output_path: decrypted_path.to_str().unwrap().to_string(),
-            passphrase: passphrase.to_string(),
+            passphrase: passphrase.as_bytes().to_vec(),
         };
 
         decrypt(&opts).unwrap();
@@ -392,7 +392,7 @@ mod tests {
         let opts = DecryptOptions {
             input_path: encrypted_path,
             output_path: decrypted_path.to_str().unwrap().to_string(),
-            passphrase: passphrase.to_string(),
+            passphrase: passphrase.as_bytes().to_vec(),
         };
 
         decrypt(&opts).unwrap();
@@ -414,7 +414,7 @@ mod tests {
         let opts = DecryptOptions {
             input_path: encrypted_path,
             output_path: decrypted_path.to_str().unwrap().to_string(),
-            passphrase: passphrase.to_string(),
+            passphrase: passphrase.as_bytes().to_vec(),
         };
 
         decrypt(&opts).unwrap();
@@ -445,7 +445,7 @@ mod tests {
         let enc_opts = EncryptOptions {
             input_path: input_path.to_str().unwrap().to_string(),
             output_path: encrypted_path.to_str().unwrap().to_string(),
-            passphrase: passphrase.to_string(),
+            passphrase: passphrase.as_bytes().to_vec(),
             time_cost: 1,
             memory_cost_kib: 1024,
             parallelism: 1,
@@ -458,7 +458,7 @@ mod tests {
         let dec_opts = DecryptOptions {
             input_path: encrypted_path.to_str().unwrap().to_string(),
             output_path: decrypted_path.to_str().unwrap().to_string(),
-            passphrase: passphrase.to_string(),
+            passphrase: passphrase.as_bytes().to_vec(),
         };
 
         decrypt(&dec_opts).unwrap();

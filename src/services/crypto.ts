@@ -243,6 +243,7 @@ export function encrypt(
   options: EncryptOptions,
   onProgress?: (event: ProgressEvent) => void,
   cancellable?: Gio.Cancellable | null,
+  keyfilePath?: string,
 ): Promise<CryptoResult> {
   return new Promise<CryptoResult>((resolve, reject) => {
     try {
@@ -266,6 +267,10 @@ export function encrypt(
 
       if (options.storeFilename) {
         argv.push("--store-filename");
+      }
+
+      if (keyfilePath) {
+        argv.push("--keyfile", keyfilePath);
       }
 
       log("debug", `Spawning encrypt: ${argv.join(" ")}`);
@@ -386,6 +391,7 @@ export function decrypt(
   _options: DecryptOptions,
   onProgress?: (event: ProgressEvent) => void,
   cancellable?: Gio.Cancellable | null,
+  keyfilePath?: string,
 ): Promise<CryptoResult> {
   return new Promise<CryptoResult>((resolve, reject) => {
     try {
@@ -399,6 +405,10 @@ export function decrypt(
         "--output",
         outputPath,
       ];
+
+      if (keyfilePath) {
+        argv.push("--keyfile", keyfilePath);
+      }
 
       log("debug", `Spawning decrypt: ${argv.join(" ")}`);
 
@@ -494,4 +504,84 @@ export function decrypt(
       }
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// In-memory buffer operations
+// ---------------------------------------------------------------------------
+
+/**
+ * Encrypt an in-memory buffer to a `.gtkrypt` file.
+ *
+ * Writes the buffer to a temporary file, encrypts it to the output path,
+ * then securely removes the temporary file. The temp file is always
+ * cleaned up, even if encryption fails.
+ *
+ * @param data - The plaintext data to encrypt.
+ * @param outputPath - Absolute path for the resulting `.gtkrypt` file.
+ * @param passphrase - User-supplied passphrase.
+ * @param options - Encryption options including KDF preset.
+ * @returns A promise resolving to a {@link CryptoResult}.
+ */
+export async function encryptBuffer(
+  data: Uint8Array,
+  outputPath: string,
+  passphrase: string,
+  options: EncryptOptions,
+  keyfilePath?: string,
+): Promise<CryptoResult> {
+  const [fd, tempPath] = GLib.file_open_tmp("gtkrypt-XXXXXX");
+  GLib.close(fd);
+
+  try {
+    // Write data to the temp file with restrictive permissions.
+    const tempFile = Gio.File.new_for_path(tempPath);
+    const stream = tempFile.replace(null, false, Gio.FileCreateFlags.PRIVATE, null);
+    if (data.length > 0) {
+      stream.write_bytes(new GLib.Bytes(data), null);
+    }
+    stream.close(null);
+
+    return await encrypt(tempPath, outputPath, passphrase, options, undefined, undefined, keyfilePath);
+  } finally {
+    try {
+      Gio.File.new_for_path(tempPath).delete(null);
+    } catch {
+      // Temp file may already be gone.
+    }
+  }
+}
+
+/**
+ * Decrypt a `.gtkrypt` file to an in-memory buffer.
+ *
+ * Decrypts to a temporary file, reads the contents into memory,
+ * then securely removes the temporary file. The temp file is always
+ * cleaned up, even if decryption fails.
+ *
+ * @param inputPath - Absolute path to the encrypted `.gtkrypt` file.
+ * @param passphrase - User-supplied passphrase.
+ * @returns A promise resolving to the decrypted data as a Uint8Array.
+ */
+export async function decryptToBuffer(
+  inputPath: string,
+  passphrase: string,
+  keyfilePath?: string,
+): Promise<Uint8Array> {
+  const [fd, tempPath] = GLib.file_open_tmp("gtkrypt-XXXXXX");
+  GLib.close(fd);
+
+  try {
+    await decrypt(inputPath, tempPath, passphrase, { useStoredFilename: false }, undefined, undefined, keyfilePath);
+
+    const tempFile = Gio.File.new_for_path(tempPath);
+    const [, contents] = tempFile.load_contents(null);
+    return contents;
+  } finally {
+    try {
+      Gio.File.new_for_path(tempPath).delete(null);
+    } catch {
+      // Temp file may already be gone.
+    }
+  }
 }

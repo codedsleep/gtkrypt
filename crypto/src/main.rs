@@ -7,6 +7,7 @@ mod progress;
 use std::io::BufRead;
 
 use clap::{Parser, Subcommand};
+use sha2::{Sha256, Digest};
 
 use decrypt::DecryptError;
 use encrypt::EncryptError;
@@ -50,6 +51,10 @@ enum Commands {
         /// Store the original filename in the container header
         #[arg(long, default_value_t = false)]
         store_filename: bool,
+
+        /// Optional keyfile path for two-factor encryption
+        #[arg(long)]
+        keyfile: Option<String>,
     },
 
     /// Decrypt a file
@@ -61,6 +66,10 @@ enum Commands {
         /// Path to the output (decrypted) file
         #[arg(long)]
         output: String,
+
+        /// Optional keyfile path for two-factor decryption
+        #[arg(long)]
+        keyfile: Option<String>,
     },
 }
 
@@ -89,6 +98,50 @@ fn read_passphrase() -> Result<String, String> {
     Ok(line)
 }
 
+/// Read a keyfile (up to 64 KiB) and return its SHA-256 hash.
+fn read_keyfile(path: &str) -> Result<[u8; 32], String> {
+    use std::io::Read;
+
+    const MAX_KEYFILE_SIZE: usize = 64 * 1024; // 64 KiB
+
+    let mut file = std::fs::File::open(path)
+        .map_err(|e| format!("Failed to open keyfile '{}': {}", path, e))?;
+
+    let mut buf = vec![0u8; MAX_KEYFILE_SIZE];
+    let mut total = 0;
+    loop {
+        match file.read(&mut buf[total..]) {
+            Ok(0) => break,
+            Ok(n) => {
+                total += n;
+                if total >= MAX_KEYFILE_SIZE {
+                    break;
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(format!("Failed to read keyfile '{}': {}", path, e)),
+        }
+    }
+
+    let mut hasher = Sha256::new();
+    hasher.update(&buf[..total]);
+    Ok(hasher.finalize().into())
+}
+
+/// Combine passphrase with optional keyfile hash into key material.
+/// If keyfile is provided: passphrase_bytes || SHA-256(keyfile_bytes)
+/// If no keyfile: passphrase_bytes
+fn build_key_material(passphrase: &str, keyfile_path: &Option<String>) -> Result<Vec<u8>, String> {
+    let mut material = passphrase.as_bytes().to_vec();
+
+    if let Some(path) = keyfile_path {
+        let keyfile_hash = read_keyfile(path)?;
+        material.extend_from_slice(&keyfile_hash);
+    }
+
+    Ok(material)
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -108,11 +161,19 @@ fn main() {
             memory_cost,
             parallelism,
             store_filename,
+            keyfile,
         } => {
+            let key_material = match build_key_material(&passphrase, &keyfile) {
+                Ok(m) => m,
+                Err(msg) => {
+                    progress::emit_error_and_exit("internal_error", &msg, 10);
+                }
+            };
+
             let opts = encrypt::EncryptOptions {
                 input_path: input,
                 output_path: output,
-                passphrase,
+                passphrase: key_material,
                 time_cost,
                 memory_cost_kib: memory_cost,
                 parallelism,
@@ -132,11 +193,18 @@ fn main() {
             }
         }
 
-        Commands::Decrypt { input, output } => {
+        Commands::Decrypt { input, output, keyfile } => {
+            let key_material = match build_key_material(&passphrase, &keyfile) {
+                Ok(m) => m,
+                Err(msg) => {
+                    progress::emit_error_and_exit("internal_error", &msg, 10);
+                }
+            };
+
             let opts = decrypt::DecryptOptions {
                 input_path: input,
                 output_path: output,
-                passphrase,
+                passphrase: key_material,
             };
 
             match decrypt::decrypt(&opts) {

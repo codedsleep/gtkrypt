@@ -331,7 +331,7 @@ class _FileListView extends Gtk.Box {
       css_classes: ["flat"],
       tooltip_text: _("Remove file"),
     });
-    removeBtn.update_property([Gtk.AccessibleProperty.LABEL], [`Remove ${entry.name}`]);
+    removeBtn.update_property([Gtk.AccessibleProperty.LABEL], [_("Remove %s").replace("%s", entry.name)]);
     removeBtn.connect("clicked", () => {
       this.onFileRemoved?.(index);
     });

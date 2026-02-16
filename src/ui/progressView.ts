@@ -79,7 +79,7 @@ class _ProgressView extends Gtk.Box {
 
       const bar = new Gtk.ProgressBar({
         show_text: true,
-        text: "0%",
+        text: _("0%"),
         fraction: 0,
       });
       bar.update_property([Gtk.AccessibleProperty.DESCRIPTION], [`${name}, ${_("0% complete")}`]);

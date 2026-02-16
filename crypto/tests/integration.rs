@@ -16,6 +16,42 @@ fn binary_path() -> std::path::PathBuf {
     path
 }
 
+/// Helper: fast KDF encrypt args (used by keyfile tests).
+fn fast_encrypt_args<'a>(
+    input: &'a str,
+    output: &'a str,
+    keyfile: Option<&'a str>,
+) -> Vec<&'a str> {
+    let mut args = vec![
+        "encrypt",
+        "--input",
+        input,
+        "--output",
+        output,
+        "--time-cost",
+        "1",
+        "--memory-cost",
+        "1024",
+        "--parallelism",
+        "1",
+    ];
+    if let Some(kf) = keyfile {
+        args.push("--keyfile");
+        args.push(kf);
+    }
+    args
+}
+
+/// Helper: decrypt args with optional keyfile.
+fn decrypt_args<'a>(input: &'a str, output: &'a str, keyfile: Option<&'a str>) -> Vec<&'a str> {
+    let mut args = vec!["decrypt", "--input", input, "--output", output];
+    if let Some(kf) = keyfile {
+        args.push("--keyfile");
+        args.push(kf);
+    }
+    args
+}
+
 /// Run the gtkrypt-crypto binary with the given args and passphrase on stdin.
 fn run_crypto(args: &[&str], passphrase: &str) -> std::process::Output {
     let bin = binary_path();
@@ -633,4 +669,157 @@ fn test_trailing_data_rejected_with_exit_code_2() {
         !decrypted_path.exists(),
         "No output file should be created for file with trailing data"
     );
+}
+
+// ── Keyfile integration tests ──
+
+#[test]
+fn test_keyfile_roundtrip() {
+    let dir = tempfile::tempdir().unwrap();
+    let input_path = dir.path().join("keyfile_test.txt");
+    let encrypted_path = dir.path().join("keyfile_test.gtkrypt");
+    let decrypted_path = dir.path().join("keyfile_decrypted.txt");
+    let keyfile_path = dir.path().join("test.keyfile");
+
+    fs::write(&input_path, b"Secret data protected by keyfile").unwrap();
+    fs::write(&keyfile_path, b"this-is-a-test-keyfile-content-1234567890").unwrap();
+
+    let enc_args = fast_encrypt_args(
+        input_path.to_str().unwrap(),
+        encrypted_path.to_str().unwrap(),
+        Some(keyfile_path.to_str().unwrap()),
+    );
+    let output = run_crypto(&enc_args, "keyfile_pass");
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "Encrypt with keyfile failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let dec_args = decrypt_args(
+        encrypted_path.to_str().unwrap(),
+        decrypted_path.to_str().unwrap(),
+        Some(keyfile_path.to_str().unwrap()),
+    );
+    let output = run_crypto(&dec_args, "keyfile_pass");
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "Decrypt with keyfile failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let decrypted = fs::read(&decrypted_path).unwrap();
+    assert_eq!(decrypted, b"Secret data protected by keyfile");
+}
+
+#[test]
+fn test_keyfile_encrypt_decrypt_without_keyfile_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let input_path = dir.path().join("kf_missing.txt");
+    let encrypted_path = dir.path().join("kf_missing.gtkrypt");
+    let decrypted_path = dir.path().join("kf_missing_dec.txt");
+    let keyfile_path = dir.path().join("test.keyfile");
+
+    fs::write(&input_path, b"Needs keyfile to decrypt").unwrap();
+    fs::write(&keyfile_path, b"keyfile-data").unwrap();
+
+    // Encrypt WITH keyfile
+    let enc_args = fast_encrypt_args(
+        input_path.to_str().unwrap(),
+        encrypted_path.to_str().unwrap(),
+        Some(keyfile_path.to_str().unwrap()),
+    );
+    let output = run_crypto(&enc_args, "pass123");
+    assert_eq!(output.status.code(), Some(0));
+
+    // Decrypt WITHOUT keyfile → should fail with exit code 1
+    let dec_args = decrypt_args(
+        encrypted_path.to_str().unwrap(),
+        decrypted_path.to_str().unwrap(),
+        None,
+    );
+    let output = run_crypto(&dec_args, "pass123");
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "Decrypt without keyfile should fail. stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!decrypted_path.exists());
+}
+
+#[test]
+fn test_no_keyfile_encrypt_decrypt_with_keyfile_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let input_path = dir.path().join("no_kf.txt");
+    let encrypted_path = dir.path().join("no_kf.gtkrypt");
+    let decrypted_path = dir.path().join("no_kf_dec.txt");
+    let keyfile_path = dir.path().join("extra.keyfile");
+
+    fs::write(&input_path, b"Encrypted without keyfile").unwrap();
+    fs::write(&keyfile_path, b"unwanted-keyfile").unwrap();
+
+    // Encrypt WITHOUT keyfile
+    let enc_args = fast_encrypt_args(
+        input_path.to_str().unwrap(),
+        encrypted_path.to_str().unwrap(),
+        None,
+    );
+    let output = run_crypto(&enc_args, "pass456");
+    assert_eq!(output.status.code(), Some(0));
+
+    // Decrypt WITH keyfile → should fail with exit code 1
+    let dec_args = decrypt_args(
+        encrypted_path.to_str().unwrap(),
+        decrypted_path.to_str().unwrap(),
+        Some(keyfile_path.to_str().unwrap()),
+    );
+    let output = run_crypto(&dec_args, "pass456");
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "Decrypt with extra keyfile should fail. stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!decrypted_path.exists());
+}
+
+#[test]
+fn test_keyfile_wrong_keyfile_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let input_path = dir.path().join("wrong_kf.txt");
+    let encrypted_path = dir.path().join("wrong_kf.gtkrypt");
+    let decrypted_path = dir.path().join("wrong_kf_dec.txt");
+    let keyfile_a = dir.path().join("keyfile_a");
+    let keyfile_b = dir.path().join("keyfile_b");
+
+    fs::write(&input_path, b"Wrong keyfile test data").unwrap();
+    fs::write(&keyfile_a, b"keyfile-contents-AAAA").unwrap();
+    fs::write(&keyfile_b, b"keyfile-contents-BBBB").unwrap();
+
+    // Encrypt with keyfile A
+    let enc_args = fast_encrypt_args(
+        input_path.to_str().unwrap(),
+        encrypted_path.to_str().unwrap(),
+        Some(keyfile_a.to_str().unwrap()),
+    );
+    let output = run_crypto(&enc_args, "same_pass");
+    assert_eq!(output.status.code(), Some(0));
+
+    // Decrypt with keyfile B → should fail with exit code 1
+    let dec_args = decrypt_args(
+        encrypted_path.to_str().unwrap(),
+        decrypted_path.to_str().unwrap(),
+        Some(keyfile_b.to_str().unwrap()),
+    );
+    let output = run_crypto(&dec_args, "same_pass");
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "Decrypt with wrong keyfile should fail. stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!decrypted_path.exists());
 }
