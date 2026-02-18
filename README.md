@@ -1,16 +1,19 @@
 # gtkrypt
 
-A minimalist, privacy-first file encryption app for GNOME Linux desktops.
+A privacy-first file encryption app and personal data vault for GNOME Linux desktops.
 
-gtkrypt encrypts and decrypts files using a passphrase. It runs natively on
+gtkrypt encrypts and decrypts files using a passphrase and provides a personal
+vault for organizing sensitive files, records, and notes. It runs natively on
 GNOME with GTK 4 and Libadwaita, is written in TypeScript targeting GJS, and
 delegates all cryptography to a bundled Rust binary.
 
-<!-- TODO: Add screenshot of main window and encrypt flow -->
+<!-- TODO: Add screenshot of main window -->
 
 ---
 
 ## Features
+
+### Files Mode
 
 - Encrypt any file with a passphrase using AES-256-GCM and Argon2id key derivation
 - Decrypt `.gtkrypt` files back to their original form
@@ -19,7 +22,33 @@ delegates all cryptography to a bundled Rust binary.
 - Streaming encryption for large files with low memory usage
 - Progress reporting with cancel support
 - Session passphrase memory (never written to disk)
+- Configurable wipe-original option with zero-overwrite
+
+### Vault Mode
+
+- Create encrypted vaults protected by passphrase (with optional keyfile two-factor)
+- Store three item types: **files**, **structured records**, and **free-form notes**
+- 9 built-in record templates: Passport, National ID, Driver's License, Credit/Debit Card, Bank Account, Medical Record, Insurance Policy, Login Credentials, Wi-Fi Network
+- 10 built-in categories: Identity, Banking, Medical, Insurance, Legal, Education, Travel, Property, Vehicles, Other
+- Full-text search across item names, tags, categories, and content
+- Filter by category, favorites, or recently accessed items
+- Grid and list view modes with sorting by name, date, or category
+- Image previews with zoom controls and encrypted thumbnail caching
+- Sensitive field masking (passwords, PINs, secrets) with reveal toggle
+- Clipboard auto-clear for copied secrets (30-second timer)
+- Auto-lock after configurable inactivity timeout
+- Bulk import with auto-categorization
+- Full vault backup and restore
+- Custom categories and per-vault settings
+- Change passphrase (re-encrypts all items)
+
+### General
+
 - GNOME-native look and feel with Libadwaita
+- Mode switcher between Files and Vault workflows
+- Keyboard navigation (Ctrl+O, Ctrl+Q, Ctrl+Comma, Escape back-navigation)
+- Desktop integration with `.gtkrypt` file association and MIME type registration
+- Accessible labels and keyboard-operable controls
 
 ---
 
@@ -116,9 +145,11 @@ files are associated with the app.
 
 ## Usage
 
-### Encrypting files
+### Files Mode
 
-1. Launch gtkrypt.
+#### Encrypting files
+
+1. Launch gtkrypt (starts in Files mode by default).
 2. Drag files onto the window, or click "Choose Files" to open the file picker.
 3. The app automatically detects whether each file should be encrypted or
    decrypted. Plaintext files are marked for encryption.
@@ -126,15 +157,15 @@ files are associated with the app.
 5. Enter a passphrase and confirm it. The passphrase is never stored on disk.
 6. Encrypted output is saved alongside the original with a `.gtkrypt` extension.
 
-### Decrypting files
+#### Decrypting files
 
 1. Drop or select `.gtkrypt` files. The app detects them automatically.
 2. Click the "Decrypt" button.
 3. Enter the passphrase used during encryption.
 4. The decrypted file is saved alongside the encrypted file with its original
-   name restored (if the filename was stored during encryption).
+   name restored.
 
-### Options
+#### Encryption Options
 
 The passphrase dialog includes an advanced options panel:
 
@@ -145,6 +176,53 @@ The passphrase dialog includes an advanced options panel:
   container so it can be restored on decryption.
 - **Wipe original** -- After successful encryption, overwrites the original file
   with zeros and deletes it. A confirmation dialog is shown before wiping.
+
+### Vault Mode
+
+Switch to Vault mode using the mode switcher in the header bar.
+
+#### Creating a vault
+
+1. Click "Create Vault" from the vault list.
+2. Enter a vault name and passphrase.
+3. Optionally select a keyfile for two-factor encryption.
+4. Choose a KDF strength preset (Balanced, Strong, or Very Strong).
+5. The vault is created and unlocked.
+
+#### Adding items
+
+From an unlocked vault, add items using the toolbar:
+
+- **Files** -- Select files from disk. Images get automatic thumbnail generation.
+- **Records** -- Choose from 9 built-in templates (Passport, Credit Card, Bank
+  Account, etc.) and fill in the structured fields.
+- **Notes** -- Create free-form text notes with a title and body.
+
+All items support names, categories, tags, and a favorite flag.
+
+#### Browsing and searching
+
+- Toggle between grid and list view.
+- Sort by name, date modified, or category.
+- Filter by category, favorites, or recently accessed items.
+- Use the search bar for full-text search across all item fields.
+
+#### Vault security
+
+- Vaults auto-lock after a configurable inactivity timeout (default 5 minutes).
+- Sensitive fields (passwords, PINs, CVVs) are masked by default with a reveal
+  toggle.
+- Copied secrets are auto-cleared from the clipboard after 30 seconds.
+- Keyfile two-factor adds an additional encryption layer beyond the passphrase.
+
+#### Vault management
+
+- **Change passphrase** -- Re-encrypts the entire vault with a new passphrase.
+- **Backup** -- Export the full vault to a directory for safekeeping.
+- **Restore** -- Import a vault from a backup directory.
+- **Delete vault** -- Permanently remove a vault after passphrase verification.
+- **Settings** -- Configure auto-lock timeout, default view mode, sort order,
+  and manage custom categories.
 
 ### KDF Presets
 
@@ -167,6 +245,9 @@ original filename, followed by chunked ciphertext with per-chunk authentication
 tags. Header bytes are included as additional authenticated data (AAD) for GCM,
 ensuring the header cannot be tampered with.
 
+Vault items use the same `.gtkrypt` container format for individual item
+encryption and for the encrypted manifest that stores vault metadata.
+
 For the full byte-level specification, see [SCOPE.md](SCOPE.md#container-format-gtkrypt).
 
 ---
@@ -177,10 +258,49 @@ For the full byte-level specification, see [SCOPE.md](SCOPE.md#container-format-
 gtkrypt/
   src/
     index.ts                  Entry point (Adw.Application)
-    ui/                       GTK4/Libadwaita UI components
-    services/                 Crypto, I/O, format, detection, naming
-    models/                   Types and error classes
-    util/                     Binary helpers and logging
+    ui/
+      window.ts               Main window with mode switcher
+      fileList.ts             Selected files list widget
+      passphraseDialog.ts     Modal passphrase entry
+      progressView.ts         Per-file + overall progress
+      resultView.ts           Completion summary
+      vaultListView.ts        Vault list with create/unlock/delete
+      vaultBrowser.ts         Vault content browser (grid/list)
+      vaultCreateDialog.ts    Create vault dialog
+      vaultUnlockDialog.ts    Unlock vault dialog
+      vaultDeleteDialog.ts    Delete vault confirmation
+      itemDetailView.ts       Item detail + file preview
+      itemEditorDialog.ts     Item metadata editor
+      recordEditorDialog.ts   Record template editor
+      noteEditorDialog.ts     Note editor
+      settingsDialog.ts       Vault settings
+      changePassphraseDialog.ts  Passphrase change
+      categoryManager.ts      Category management
+      importDialog.ts         Bulk import wizard
+      exportDialog.ts         Backup and item export
+      imageViewer.ts          Image preview with zoom
+      textViewer.ts           Text preview
+    services/
+      crypto.ts               Subprocess orchestration for encrypt/decrypt
+      vault.ts                Vault lifecycle and item management
+      manifest.ts             Manifest serialization/encryption
+      io.ts                   File metadata, permissions, secure wipe
+      format.ts               Container header decode (TS side)
+      detect.ts               Magic byte detection
+      naming.ts               Output filename generation
+      search.ts               Full-text search and filtering
+      clipboard.ts            Clipboard with auto-clear
+      thumbnail.ts            Image thumbnail generation
+    models/
+      types.ts                Shared types and interfaces
+      errors.ts               Typed error classes
+      categories.ts           Built-in category definitions
+      templates.ts            Built-in document templates
+    util/
+      bytes.ts                Binary read/write helpers
+      logging.ts              Safe logger (never logs secrets)
+      i18n.ts                 Gettext wrapper
+      uuid.ts                 UUID generation
   crypto/                     Rust crypto backend (gtkrypt-crypto)
   data/                       Desktop file, AppStream metainfo, icons, MIME type
   dist/                       Build output and meson resources
