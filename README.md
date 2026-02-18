@@ -1,15 +1,12 @@
 # gtkrypt
 
 A privacy-first file encryption app and personal data vault for GNOME Linux desktops.
-<img width="5120" height="2816" alt="Screenshot From 2026-02-18 01-42-48" src="https://github.com/user-attachments/assets/0ee6bc06-f9a6-42ab-b664-b538001b09e7" />
-<img width="5120" height="2816" alt="Screenshot From 2026-02-18 01-43-03" src="https://github.com/user-attachments/assets/459432d9-b947-47aa-ad9f-a87a2dca469e" />
-
 gtkrypt encrypts and decrypts files using a passphrase and provides a personal
 vault for organizing sensitive files, records, and notes. It runs natively on
 GNOME with GTK 4 and Libadwaita, is written in TypeScript targeting GJS, and
 delegates all cryptography to a bundled Rust binary.
 
-<!-- TODO: Add screenshot of main window -->
+<img width="5120" height="2816" alt="Screenshot From 2026-02-18 01-43-03" src="https://github.com/user-attachments/assets/459432d9-b947-47aa-ad9f-a87a2dca469e" />
 
 ---
 
